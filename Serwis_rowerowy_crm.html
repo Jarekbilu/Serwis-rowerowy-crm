@@ -1,0 +1,2441 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Serwis Rowerowy CRM</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          },
+          colors: {
+            navy: {
+              800: '#1e293b',
+              900: '#0f172a',
+              950: '#090d16',
+            },
+            brand: {
+              50: '#f0fdfa',
+              100: '#ccfbf1',
+              500: '#14b8a6',
+              600: '#0d9488',
+              700: '#0f766e',
+            }
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    /* Płynne paski przewijania w panelach roboczych */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 font-sans antialiased selection:bg-teal-100 selection:text-teal-900">
+
+  <!-- Główny kontener aplikacji -->
+  <div id="app" class="min-h-screen flex flex-col">
+
+    <!-- Górny pasek nawigacji -->
+    <header class="bg-slate-900 text-white shadow-md sticky top-0 z-30">
+      <div class="max-w-[1600px] mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
+        <!-- Logo i nazwa warsztatu -->
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-teal-500/20 border border-teal-400/40 flex items-center justify-center text-teal-300 shrink-0">
+            <!-- Ikona roweru SVG -->
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="18.5" cy="17.5" r="3.5"/><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="15" cy="5" r="1"/><path d="M12 17.5V14l-3-3 4-3 2 3h2"/>
+            </svg>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h1 class="font-bold text-base sm:text-lg tracking-tight leading-none">Serwis Rowerowy CRM</h1>
+              <span id="dbStatusBadge" class="hidden sm:inline-flex items-center gap-1.5 text-[11px] font-medium px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
+                <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse" id="dbStatusDot"></span>
+                <span id="dbStatusText">Łączenie z bazą...</span>
+              </span>
+            </div>
+            <p class="text-xs text-slate-400 hidden sm:block mt-0.5">Klienci • Rowery • Zlecenia serwisowe • Kosztorysy</p>
+          </div>
+        </div>
+
+        <!-- Akcje globalne w nagłówku -->
+        <div class="flex items-center gap-2">
+          <button type="button" onclick="openSyncModal()" class="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-100 text-xs sm:text-sm font-medium border border-slate-700 transition cursor-pointer" title="Ustawienia synchronizacji z Google Sheets">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-sky-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/>
+            </svg>
+            <span class="hidden sm:inline">Sheets Sync</span>
+            <span id="syncCounterBadge" class="px-1.5 py-0.5 rounded-md bg-slate-900 text-teal-300 font-mono text-[11px]">0</span>
+          </button>
+
+          <button type="button" onclick="openDictionariesModal()" class="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-100 text-xs sm:text-sm font-medium border border-slate-700 transition cursor-pointer">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-teal-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/>
+            </svg>
+            <span class="hidden xl:inline">Słowniki i Cennik</span>
+            <span class="xl:hidden hidden sm:inline">Cennik</span>
+          </button>
+
+          <button type="button" onclick="exportOrdersCSV()" class="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-teal-600 hover:bg-teal-500 text-white text-xs sm:text-sm font-medium shadow-sm transition cursor-pointer">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            <span class="hidden md:inline">Eksport CSV</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Pasek szybkiego statusu synchronizacji z Google Sheets -->
+      <div class="bg-slate-950/90 border-t border-slate-800">
+        <div class="max-w-[1600px] mx-auto px-4 sm:px-6 py-1.5 flex flex-wrap items-center justify-between gap-2 text-xs">
+          <div class="flex items-center gap-2 min-w-0">
+            <span id="sheetsSyncDot" class="w-2 h-2 rounded-full bg-amber-400 shrink-0"></span>
+            <span id="sheetsSyncMessage" class="text-slate-300 truncate">Inicjalizacja połączenia z Google Sheets...</span>
+            <span id="sheetsLastAction" class="hidden md:inline text-slate-500 truncate"></span>
+          </div>
+          <div class="flex items-center gap-1.5 shrink-0">
+            <button type="button" onclick="pullFromGoogleSheets(true)" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium border border-slate-700 transition cursor-pointer">
+              Pobierz z Sheets
+            </button>
+            <button type="button" onclick="pushAllToGoogleSheets()" class="px-2.5 py-1 rounded-lg bg-teal-700/80 hover:bg-teal-600 text-white font-medium border border-teal-600/50 transition cursor-pointer">
+              Synchronizuj z Sheets
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pasek zakładek mobilnych (widoczny poniżej LG) -->
+      <div class="lg:hidden bg-slate-800 border-t border-slate-700 px-3 py-2 grid grid-cols-3 gap-2">
+        <button type="button" id="mobTabClients" onclick="setMobileTab('clients')" class="py-2 px-2 rounded-lg text-xs font-semibold text-center bg-teal-600 text-white transition">
+          1. Klienci (<span id="mobClientsCount">0</span>)
+        </button>
+        <button type="button" id="mobTabClientCard" onclick="setMobileTab('clientCard')" class="py-2 px-2 rounded-lg text-xs font-semibold text-center bg-slate-700 text-slate-300 transition">
+          2. Kartoteka
+        </button>
+        <button type="button" id="mobTabOrderForm" onclick="setMobileTab('orderForm')" class="py-2 px-2 rounded-lg text-xs font-semibold text-center bg-slate-700 text-slate-300 transition">
+          3. Karta Zlecenia
+        </button>
+      </div>
+    </header>
+
+    <!-- Główny obszar roboczy: układ 3-kolumnowy na desktopie -->
+    <main class="flex-1 max-w-[1600px] w-full mx-auto p-3 sm:p-5 grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5 items-start">
+
+      <!-- ===================================================================== -->
+      <!-- PANEL LEWY (3 kolumny na LG): LISTA KLIENTÓW                          -->
+      <!-- ===================================================================== -->
+      <section id="panelClients" class="lg:col-span-3 bg-white rounded-2xl shadow-sm border border-slate-200/90 flex flex-col overflow-hidden lg:sticky lg:top-20 lg:max-h-[calc(100vh-6.5rem)]">
+        <!-- Nagłówek panelu klientów -->
+        <div class="p-4 border-b border-slate-100 bg-slate-50/70">
+          <div class="flex items-center justify-between gap-2 mb-3">
+            <h2 class="font-bold text-slate-900 text-base flex items-center gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-teal-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+              </svg>
+              Klienci
+            </h2>
+            <button type="button" onclick="openClientModal(null)" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold shadow-sm transition cursor-pointer">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+              </svg>
+              Dodaj klienta
+            </button>
+          </div>
+
+          <!-- Wyszukiwarka klientów -->
+          <div class="relative mb-2.5">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input type="text" id="clientSearchInput" oninput="renderClientsList()" placeholder="Szukaj: imię, telefon, firma..." class="w-full pl-9 pr-8 py-2 rounded-xl border border-slate-200 bg-white text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 transition" />
+            <button type="button" id="clearSearchBtn" onclick="clearClientSearch()" class="hidden absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs font-bold p-1 cursor-pointer" title="Wyczyść">✕</button>
+          </div>
+
+          <!-- Przycisk widoku zbiorczego wszystkich zleceń -->
+          <button type="button" id="btnAllView" onclick="selectAllView()" class="w-full py-2 px-3 rounded-xl text-xs font-semibold flex items-center justify-between border transition cursor-pointer bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200/70">
+            <span class="flex items-center gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+              </svg>
+              Wszyscy klienci / Wszystkie zlecenia
+            </span>
+            <span id="totalOrdersCountBadge" class="px-2 py-0.5 rounded-full bg-white text-slate-700 font-bold text-[11px] shadow-xs">0</span>
+          </button>
+        </div>
+
+        <!-- Lista przewijana klientów -->
+        <div id="clientsListContainer" class="divide-y divide-slate-100 overflow-y-auto flex-1 p-2 space-y-1">
+          <!-- Renderowane dynamicznie w JS -->
+        </div>
+      </section>
+
+      <!-- ===================================================================== -->
+      <!-- PANEL ŚRODKOWY (4 kolumny na LG): KARTOTEKA KLIENTA / WSZYSTKIE ZLEC. -->
+      <!-- ===================================================================== -->
+      <section id="panelClientCard" class="hidden lg:flex lg:col-span-4 flex-col gap-4">
+        <!-- Zawartość generowana dynamicznie w zależności od wybranego klienta lub widoku zbiorczego -->
+        <div id="middlePanelContent" class="space-y-4"></div>
+      </section>
+
+      <!-- ===================================================================== -->
+      <!-- PANEL PRAWY (5 kolumn na LG): KARTA ZLECENIA / FORMULARZ NAPRAWY      -->
+      <!-- ===================================================================== -->
+      <section id="panelOrderForm" class="hidden lg:block lg:col-span-5">
+        <div id="rightPanelContent"></div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL 1: DODAWANIE / EDYCJA KLIENTA                                       -->
+  <!-- ========================================================================= -->
+  <div id="clientModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
+    <div class="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-md w-full overflow-hidden animate-fadeIn">
+      <div class="px-5 py-4 bg-slate-900 text-white flex items-center justify-between">
+        <h3 id="clientModalTitle" class="font-bold text-base">Nowy klient</h3>
+        <button type="button" onclick="closeModal('clientModal')" class="text-slate-400 hover:text-white p-1 rounded-lg cursor-pointer">✕</button>
+      </div>
+      <form id="clientForm" onsubmit="saveClientForm(event)" class="p-5 space-y-4">
+        <input type="hidden" id="clientFormId" />
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Imię i nazwisko / Nazwa *</label>
+          <input type="text" id="clientFormName" required placeholder="np. Jan Kowalski" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Telefon kontaktowy *</label>
+          <input type="text" id="clientFormPhone" required placeholder="np. 500 600 700" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Firma / Opis dodatkowy (opcjonalnie)</label>
+          <input type="text" id="clientFormCompany" placeholder="np. Firma XYZ / stały klient" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500" />
+        </div>
+        <div class="pt-2 flex items-center justify-end gap-2 border-t border-slate-100">
+          <button type="button" onclick="closeModal('clientModal')" class="px-4 py-2 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-100 transition cursor-pointer">Anuluj</button>
+          <button type="submit" class="px-5 py-2 rounded-xl text-sm font-semibold bg-teal-600 hover:bg-teal-700 text-white shadow-sm transition cursor-pointer">Zapisz klienta</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL 2: DODAWANIE / EDYCJA ROWERU KLIENTA                                -->
+  <!-- ========================================================================= -->
+  <div id="bikeModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
+    <div class="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-md w-full overflow-hidden">
+      <div class="px-5 py-4 bg-slate-900 text-white flex items-center justify-between">
+        <div>
+          <h3 id="bikeModalTitle" class="font-bold text-base">Dodaj rower klienta</h3>
+          <p id="bikeModalClientLabel" class="text-xs text-teal-300 mt-0.5"></p>
+        </div>
+        <button type="button" onclick="closeModal('bikeModal')" class="text-slate-400 hover:text-white p-1 rounded-lg cursor-pointer">✕</button>
+      </div>
+      <form id="bikeForm" onsubmit="saveBikeForm(event)" class="p-5 space-y-4">
+        <input type="hidden" id="bikeFormId" />
+        <input type="hidden" id="bikeFormClientId" />
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Marka roweru *</label>
+            <input type="text" id="bikeFormBrand" list="brandsDatalist" required placeholder="Wybierz lub wpisz..." class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500" />
+            <datalist id="brandsDatalist"></datalist>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Model *</label>
+            <input type="text" id="bikeFormModel" required placeholder="np. Stereo Race HPC" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500" />
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Numer seryjny ramy (Serial)</label>
+          <input type="text" id="bikeFormSerial" placeholder="np. WOW33578MCNR" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Opis stały roweru (klucz, bateria, silnik)</label>
+          <input type="text" id="bikeFormNotes" placeholder="np. Nr klucza: X426542, silnik Bosch" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500" />
+        </div>
+        <div class="pt-2 flex items-center justify-end gap-2 border-t border-slate-100">
+          <button type="button" onclick="closeModal('bikeModal')" class="px-4 py-2 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-100 transition cursor-pointer">Anuluj</button>
+          <button type="submit" class="px-5 py-2 rounded-xl text-sm font-semibold bg-teal-600 hover:bg-teal-700 text-white shadow-sm transition cursor-pointer">Zapisz rower</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL 3: SŁOWNIKI I CENNIK USŁUG / CZĘŚCI                                 -->
+  <!-- ========================================================================= -->
+  <div id="dictionariesModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
+    <div class="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-3xl w-full max-h-[90vh] flex flex-col overflow-hidden">
+      <div class="px-5 py-4 bg-slate-900 text-white flex items-center justify-between shrink-0">
+        <div>
+          <h3 class="font-bold text-base">Słowniki warsztatowe i Cennik</h3>
+          <p class="text-xs text-slate-400 mt-0.5">Zarządzaj markami rowerów, statusami napraw oraz gotowymi pozycjami cennika</p>
+        </div>
+        <button type="button" onclick="closeModal('dictionariesModal')" class="text-slate-400 hover:text-white p-1.5 rounded-lg cursor-pointer">✕</button>
+      </div>
+
+      <!-- Zakładki wewnątrz modala słowników -->
+      <div class="px-5 pt-3 bg-slate-50 border-b border-slate-200 flex gap-2 shrink-0">
+        <button type="button" id="dictTabPrice" onclick="switchDictTab('price')" class="px-4 py-2 text-xs sm:text-sm font-semibold rounded-t-xl border-t border-x border-slate-200 bg-white text-teal-700 -mb-px cursor-pointer">
+          Cennik usług i części
+        </button>
+        <button type="button" id="dictTabBrands" onclick="switchDictTab('brands')" class="px-4 py-2 text-xs sm:text-sm font-semibold rounded-t-xl text-slate-600 hover:text-slate-900 cursor-pointer">
+          Marki rowerów
+        </button>
+        <button type="button" id="dictTabStatuses" onclick="switchDictTab('statuses')" class="px-4 py-2 text-xs sm:text-sm font-semibold rounded-t-xl text-slate-600 hover:text-slate-900 cursor-pointer">
+          Statusy zleceń
+        </button>
+      </div>
+
+      <div id="dictionariesModalBody" class="p-5 overflow-y-auto flex-1">
+        <!-- Renderowane dynamicznie -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL 4: USTAWIENIA I HISTORIA SYNCHRONIZACJI GOOGLE SHEETS               -->
+  <!-- ========================================================================= -->
+  <div id="syncModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
+    <div class="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden">
+      <div class="px-5 py-4 bg-slate-900 text-white flex items-center justify-between shrink-0">
+        <div>
+          <h3 class="font-bold text-base">Synchronizacja z Google Sheets (Apps Script)</h3>
+          <p class="text-xs text-slate-400 mt-0.5">Automatyczny zapis zmian na bieżąco oraz ręczne pobieranie/wysyłanie danych</p>
+        </div>
+        <button type="button" onclick="closeModal('syncModal')" class="text-slate-400 hover:text-white p-1.5 rounded-lg cursor-pointer">✕</button>
+      </div>
+
+      <div class="p-5 space-y-4 overflow-y-auto flex-1">
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Adres URL wdrożenia Google Apps Script (/exec)</label>
+          <div class="flex flex-col sm:flex-row gap-2">
+            <input type="url" id="syncUrlInput" placeholder="https://script.google.com/macros/s/.../exec" class="flex-1 px-3.5 py-2 rounded-xl border border-slate-300 text-xs sm:text-sm font-mono focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500" />
+            <button type="button" onclick="saveSyncUrlFromModal()" class="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs sm:text-sm font-semibold transition cursor-pointer shrink-0">
+              Zapisz URL
+            </button>
+            <button type="button" onclick="resetDefaultSyncUrl()" class="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition cursor-pointer shrink-0">
+              Domyślny
+            </button>
+          </div>
+          <p class="text-[11px] text-slate-500 mt-1">Adres jest zapamiętywany w <code class="font-mono">localStorage</code> przeglądarki. Zmiany w CRM są wysyłane metodą POST z <code class="font-mono">mode: 'no-cors'</code> i nagłówkiem <code class="font-mono">text/plain;charset=utf-8</code>.</p>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2 pt-1">
+          <button type="button" onclick="pullFromGoogleSheets(true)" class="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs sm:text-sm font-semibold shadow-sm transition cursor-pointer">
+            Pobierz z Sheets (GET)
+          </button>
+          <button type="button" onclick="pushAllToGoogleSheets()" class="px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs sm:text-sm font-semibold shadow-sm transition cursor-pointer">
+            Synchronizuj z Sheets (Wyślij wszystko)
+          </button>
+          <span id="modalSyncStatusText" class="text-xs font-medium text-slate-600 ml-auto"></span>
+        </div>
+
+        <div class="pt-3 border-t border-slate-200">
+          <div class="flex items-center justify-between mb-2">
+            <h4 class="text-xs font-bold uppercase tracking-wider text-slate-600">Historia ostatnich wysyłek i operacji (<span id="syncLogCount">0</span>)</h4>
+            <button type="button" onclick="clearSyncLogs()" class="text-xs text-slate-400 hover:text-rose-600 font-medium cursor-pointer">Wyczyść log</button>
+          </div>
+          <div id="syncLogsList" class="space-y-1.5 max-h-56 overflow-y-auto bg-slate-50 p-3 rounded-xl border border-slate-200/80 text-xs font-mono">
+            <!-- Renderowane dynamicznie -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- POWIADOMIENIA TOAST (zamiast alert())                                     -->
+  <!-- ========================================================================= -->
+  <div id="toastContainer" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+  <!-- ========================================================================= -->
+  <!-- LOGIKA APLIKACJI + INTEGRACJA FIREBASE FIRESTORE                          -->
+  <!-- ========================================================================= -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, doc, setDoc, getDoc, updateDoc, deleteDoc, onSnapshot, collection, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    // =========================================================================
+    // 1. KONFIGURACJA ŚRODOWISKA I STAN APLIKACJI
+    // =========================================================================
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'serwis-rowerowy-crm-default';
+    const DEFAULT_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwOkEAIL13ZcqrsFqxMI8VzenTPceuL0FtCUS_HyOgSxob9Fx_lNnnSdOFDFaRVw8o0/exec';
+    const LOCAL_STORAGE_URL_KEY = 'serwis_rowerowy_crm_apps_script_url_v1';
+    const LOCAL_STORAGE_BACKUP_KEY = 'serwis_rowerowy_crm_backup_v1';
+
+    let db = null;
+    let auth = null;
+    let currentUser = null;
+    let isCloudConnected = false;
+
+    function loadSavedAppsScriptUrl() {
+      try {
+        const saved = localStorage.getItem(LOCAL_STORAGE_URL_KEY);
+        return saved && saved.trim() ? saved.trim() : DEFAULT_APPS_SCRIPT_URL;
+      } catch (_e) {
+        return DEFAULT_APPS_SCRIPT_URL;
+      }
+    }
+
+    function saveAppsScriptUrlToStorage(url) {
+      try {
+        localStorage.setItem(LOCAL_STORAGE_URL_KEY, url.trim());
+      } catch (_e) {
+        // Ignoruj ograniczenia pamięci przeglądarki
+      }
+    }
+
+    // Stan główny w pamięci (synchronizowany z Google Sheets oraz opcjonalnie Firestore)
+    const state = {
+      appsScriptUrl: loadSavedAppsScriptUrl(),
+      syncStatus: 'syncing', // 'syncing' | 'synced' | 'sent' | 'offline' | 'error'
+      syncMessage: 'Łączenie z Google Sheets...',
+      lastActionText: '',
+      sentCount: 0,
+      syncLogs: [],
+      clients: [],
+      bikes: [],
+      orders: [],
+      dictionaries: {
+        brands: ['Cube', 'Bulls', 'Raymon', 'Ecobike', 'Trek', 'Giant', 'Specialized', 'Kross', 'Romet', 'Scott', 'Cannondale', 'Merida', 'Inna'],
+        statuses: ['Przyjęty', 'Diagnoza', 'Oczekuje na części', 'W trakcie reklamacji', 'Do potwierdzenia', 'Gotowy', 'Wydany'],
+        priceList: [
+          { id: 'PRC-01', name: 'Przegląd podstawowy', price: 150 },
+          { id: 'PRC-02', name: 'Przegląd pełny / rozszerzony', price: 280 },
+          { id: 'PRC-03', name: 'Wymiana kasety', price: 160 },
+          { id: 'PRC-04', name: 'Kaseta napędowa', price: 379 },
+          { id: 'PRC-05', name: 'Dętka rowerowa', price: 30 },
+          { id: 'PRC-06', name: 'Opona rowerowa', price: 89 },
+          { id: 'PRC-07', name: 'Robota - wymiana dętki i opony', price: 150 },
+          { id: 'PRC-08', name: 'Wymiana wyświetlacza e-bike', price: 330 },
+          { id: 'PRC-09', name: 'Regulacja przerzutek', price: 50 },
+          { id: 'PRC-10', name: 'Odpowietrzenie hamulca hydraulicznego', price: 80 },
+          { id: 'PRC-11', name: 'Centrowanie koła', price: 60 },
+          { id: 'PRC-12', name: 'Wymiana sztycy (robocizna)', price: 100 }
+        ]
+      },
+      selectedClientId: 'K-005', // Domyślnie wybrany Paweł (ma 2 rowery i 2 zlecenia)
+      viewMode: 'client', // 'client' lub 'all'
+      selectedOrderId: 'ZLC-005', // Domyślnie otwarte zlecenie w prawym panelu
+      draftOrder: null, // Robocza kopia aktualnie edytowanego zlecenia
+      hasUnsavedChanges: false,
+      activeDictTab: 'price',
+      mobileTab: 'clients'
+    };
+
+    // =========================================================================
+    // 2. DANE STARTOWE (Z TWOJEGO ARKUSZA, W TYM POZ-001..POZ-012)
+    // =========================================================================
+    const INITIAL_CLIENTS = [
+      { id: 'K-001', name: 'Grzegorz', phone: '501130182', company: '' },
+      { id: 'K-002', name: 'Maria', phone: '573079111', company: '' },
+      { id: 'K-003', name: 'Gabryś', phone: '698667906', company: '' },
+      { id: 'K-004', name: 'Jarek', phone: '666640200', company: 'Smarttec Jarosław Żabski' },
+      { id: 'K-005', name: 'Paweł', phone: '696971404', company: 'Chwał Motocykle' },
+      { id: 'K-006', name: 'Grzegorz', phone: '605783358', company: 'Świecące jaja' }
+    ];
+
+    const INITIAL_BIKES = [
+      { id: 'R-001', clientId: 'K-001', brand: 'Cube', model: 'Stereo Race HPC', serial: 'WOW33578MCNR', notes: '-' },
+      { id: 'R-002', clientId: 'K-002', brand: 'Ecobike', model: 'Składak', serial: '-', notes: 'Chińczyk' },
+      { id: 'R-003', clientId: 'K-003', brand: 'Bulls', model: 'Sztywniak', serial: '', notes: 'Jak Rotwild' },
+      { id: 'R-004', clientId: 'K-004', brand: 'Bulls', model: 'TR 2 FIT', serial: 'AA31123585', notes: 'A05245900' },
+      { id: 'R-005', clientId: 'K-005', brand: 'Raymon', model: 'Crossray Ultra', serial: 'RAY AT95-42-A', notes: 'Nr klucza: X426542' },
+      { id: 'R-006', clientId: 'K-005', brand: 'Inna', model: 'Drugi rower (nieokreślony)', serial: '', notes: 'Brak danych roweru przy przyjęciu' },
+      { id: 'R-007', clientId: 'K-006', brand: 'Bulls', model: 'AM FIT Panasonic', serial: 'AA10318073', notes: 'Odo od wymiany silnika' }
+    ];
+
+    const INITIAL_COST_ITEMS = [
+      { id: 'POZ-001', orderId: 'ZLC-001', name: 'Kaseta', price: 379, qty: 1 },
+      { id: 'POZ-002', orderId: 'ZLC-001', name: 'Wymiana kasety', price: 160, qty: 1 },
+      { id: 'POZ-003', orderId: 'ZLC-002', name: 'Dętka', price: 30, qty: 1 },
+      { id: 'POZ-004', orderId: 'ZLC-002', name: 'Opona', price: 89, qty: 1 },
+      { id: 'POZ-005', orderId: 'ZLC-002', name: 'Robota - wymiana dętki i opony', price: 150, qty: 1 },
+      { id: 'POZ-006', orderId: 'ZLC-003', name: 'Wymiana wyświetlacza', price: 330, qty: 1 },
+      { id: 'POZ-007', orderId: 'ZLC-007', name: 'Trzy najmniejsze koronki kasety', price: 115, qty: 1 },
+      { id: 'POZ-008', orderId: 'ZLC-007', name: 'Robocizna - wymiana koronek', price: 100, qty: 1 },
+      { id: 'POZ-009', orderId: 'ZLC-007', name: 'Ośka tylnej piasty', price: 140, qty: 1 },
+      { id: 'POZ-010', orderId: 'ZLC-007', name: 'Robocizna - wymiana ośki piasty', price: 150, qty: 1 },
+      { id: 'POZ-011', orderId: 'ZLC-007', name: 'Sztyca', price: 260, qty: 1 },
+      { id: 'POZ-012', orderId: 'ZLC-007', name: 'Robocizna - wymiana sztycy', price: 100, qty: 1 }
+    ];
+
+    function buildInitialOrders() {
+      const baseOrders = [
+        {
+          id: 'ZLC-001',
+          dateIn: '2026-10-26',
+          dateOut: '',
+          bikeId: 'R-001',
+          mileage: '8183',
+          accessories: '',
+          problem: 'Przeskakuje nowy łańcuch na kasecie',
+          diagnosis: '1. Kaseta do wymiany\n2. Krzywy hak przerzutki',
+          summary: '',
+          finalNotes: '',
+          status: 'Gotowy'
+        },
+        {
+          id: 'ZLC-002',
+          dateIn: '2026-10-26',
+          dateOut: '',
+          bikeId: 'R-002',
+          mileage: '-',
+          accessories: '',
+          problem: 'Przebite tylne koło',
+          diagnosis: '1. Dętka do wymiany\n2. Opona do wymiany\n3. Robota',
+          summary: '',
+          finalNotes: '',
+          status: 'Oczekuje na części'
+        },
+        {
+          id: 'ZLC-003',
+          dateIn: '2026-10-28',
+          dateOut: '',
+          bikeId: 'R-003',
+          mileage: '',
+          accessories: '',
+          problem: 'Nie przełącza trybów wspomagania - podejrzenie uszkodzenia wyświetlacza',
+          diagnosis: 'Nie działa sam wyświetlacz, mocowanie i manetka są sprawne. Nie da się wymienić na Allround bo to najstarszy silnik jest',
+          summary: 'Jedyna opcja to wymiana wyświetlacza na inny, sprawny, taki sam',
+          finalNotes: '',
+          status: 'Gotowy'
+        },
+        {
+          id: 'ZLC-004',
+          dateIn: '2026-11-05',
+          dateOut: '',
+          bikeId: 'R-004',
+          mileage: '211',
+          accessories: '',
+          problem: 'Utopiony - diagnostyka',
+          diagnosis: 'Nie działa bateria',
+          summary: 'Wysłano reklamację do FIT - CS0331127',
+          finalNotes: '',
+          status: 'W trakcie reklamacji'
+        },
+        {
+          id: 'ZLC-005',
+          dateIn: '2026-11-17',
+          dateOut: '',
+          bikeId: 'R-005',
+          mileage: '299',
+          accessories: 'Brak kluczyków\n1. Speedbox\n2. Papiery',
+          problem: '1. Przegląd\n2. Instalacja speedboxa',
+          diagnosis: '',
+          summary: '',
+          finalNotes: '',
+          status: 'Przyjęty'
+        },
+        {
+          id: 'ZLC-006',
+          dateIn: '2026-11-17',
+          dateOut: '',
+          bikeId: 'R-006',
+          mileage: '',
+          accessories: '',
+          problem: '1. Przegląd\n2. Czy da się wyciszyć tykanie tylnej piasty\n3. Ocieranie przedniego hamulca o tarczę\n4. Podać rozmiar ośki tylnego koła',
+          diagnosis: '',
+          summary: '',
+          finalNotes: '',
+          status: 'Przyjęty'
+        },
+        {
+          id: 'ZLC-007',
+          dateIn: '2026-11-25',
+          dateOut: '',
+          bikeId: 'R-007',
+          mileage: '1417',
+          accessories: '',
+          problem: '1. Sztyca nie działa - nie blokuje się\n2. Łańcuch przeskakuje na najmniejszych zębatkach',
+          diagnosis: 'Napęd wymieniono 16 września 2025, odo 126km, RMA/423/2025\n1. Trzy koronki najmniejsze do wymiany\n2. Pęknięta ośka tylnej piasty - do wymiany\n3. Sztyca do wymiany',
+          summary: '',
+          finalNotes: '',
+          status: 'Do potwierdzenia'
+        }
+      ];
+
+      return baseOrders.map((o) => ({
+        ...o,
+        items: INITIAL_COST_ITEMS.filter((it) => it.orderId === o.id).map((it) => ({
+          id: it.id,
+          name: it.name,
+          price: it.price,
+          qty: it.qty
+        }))
+      }));
+    }
+
+    const INITIAL_ORDERS = buildInitialOrders();
+
+    function loadFallbackSeedData() {
+      try {
+        const raw = localStorage.getItem(LOCAL_STORAGE_BACKUP_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed.clients) && parsed.clients.length > 0 && Array.isArray(parsed.orders)) {
+            state.clients = parsed.clients;
+            state.bikes = Array.isArray(parsed.bikes) ? parsed.bikes : structuredClone(INITIAL_BIKES);
+            state.orders = parsed.orders;
+            return;
+          }
+        }
+      } catch (_e) {
+        // W razie błędu odczytu użyj danych fabrycznych
+      }
+      state.clients = structuredClone(INITIAL_CLIENTS);
+      state.bikes = structuredClone(INITIAL_BIKES);
+      state.orders = structuredClone(INITIAL_ORDERS);
+    }
+
+    function saveLocalBackup() {
+      try {
+        localStorage.setItem(LOCAL_STORAGE_BACKUP_KEY, JSON.stringify({
+          clients: state.clients,
+          bikes: state.bikes,
+          orders: state.orders,
+          savedAt: new Date().toISOString()
+        }));
+      } catch (_e) {
+        // Ignoruj błędy limitu pamięci przeglądarki
+      }
+    }
+
+    // =========================================================================
+    // 3. INTEGRACJA Z GOOGLE APPS SCRIPT (GET + POST NO-CORS) ORAZ FIRESTORE
+    // =========================================================================
+    function setSyncStatus(status, message, detail = '') {
+      state.syncStatus = status;
+      state.syncMessage = message;
+      if (detail) state.lastActionText = detail;
+
+      const dot = document.getElementById('sheetsSyncDot');
+      const msgEl = document.getElementById('sheetsSyncMessage');
+      const lastEl = document.getElementById('sheetsLastAction');
+      const badgeEl = document.getElementById('syncCounterBadge');
+      const modalStatusEl = document.getElementById('modalSyncStatusText');
+
+      if (dot) {
+        if (status === 'syncing') dot.className = 'w-2 h-2 rounded-full bg-sky-400 animate-ping shrink-0';
+        else if (status === 'synced' || status === 'sent') dot.className = 'w-2 h-2 rounded-full bg-emerald-400 shrink-0';
+        else if (status === 'offline') dot.className = 'w-2 h-2 rounded-full bg-amber-400 shrink-0';
+        else dot.className = 'w-2 h-2 rounded-full bg-rose-400 shrink-0';
+      }
+
+      if (msgEl) msgEl.textContent = message;
+      if (lastEl) {
+        lastEl.textContent = state.lastActionText ? `• ${state.lastActionText}` : '';
+        lastEl.classList.toggle('hidden', !state.lastActionText);
+      }
+      if (badgeEl) badgeEl.textContent = String(state.sentCount);
+      if (modalStatusEl) modalStatusEl.textContent = message;
+    }
+
+    function addSyncLog(direction, table, action, recordId, note = '') {
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      state.syncLogs.unshift({
+        id: Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+        time: timeStr,
+        direction,
+        table,
+        action,
+        recordId,
+        note
+      });
+      if (state.syncLogs.length > 40) {
+        state.syncLogs = state.syncLogs.slice(0, 40);
+      }
+      renderSyncLogsModal();
+    }
+
+    function renderSyncLogsModal() {
+      const listEl = document.getElementById('syncLogsList');
+      const countEl = document.getElementById('syncLogCount');
+      if (countEl) countEl.textContent = String(state.syncLogs.length);
+      if (!listEl) return;
+
+      if (state.syncLogs.length === 0) {
+        listEl.innerHTML = `<div class="text-slate-400 py-3 text-center">Brak zarejestrowanych operacji synchronizacji w tej sesji.</div>`;
+        return;
+      }
+
+      listEl.innerHTML = state.syncLogs.map((log) => {
+        const color = log.direction === 'ERR'
+          ? 'text-rose-700'
+          : log.direction === 'POST'
+          ? 'text-teal-700'
+          : 'text-sky-700';
+        return `
+          <div class="flex items-start justify-between gap-2 py-1 border-b border-slate-200/70 last:border-none">
+            <span class="text-slate-400 shrink-0">[${escapeHTML(log.time)}]</span>
+            <span class="font-bold shrink-0 ${color}">${escapeHTML(log.direction)}</span>
+            <span class="text-slate-800 truncate">${escapeHTML(log.table)} (${escapeHTML(log.action)} ${escapeHTML(log.recordId)})${log.note ? ` — ${escapeHTML(log.note)}` : ''}</span>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Mapowanie rekordów aplikacji na dokładne nazwy kolumn arkusza Google Sheets
+    function mapClientToSheetRecord(client) {
+      return {
+        ID_Klienta: client.id || '',
+        Imię_Nazwa: client.name || '',
+        Telefon: client.phone || '',
+        Opis_klienta_Firma: client.company || ''
+      };
+    }
+
+    function mapBikeToSheetRecord(bike) {
+      return {
+        ID_Roweru: bike.id || '',
+        ID_Klienta: bike.clientId || '',
+        Marka: bike.brand || '',
+        Model: bike.model || '',
+        Numer_Seryjny: bike.serial || '',
+        Opis_stały_roweru: bike.notes || ''
+      };
+    }
+
+    function mapOrderToSheetRecord(order) {
+      const bike = state.bikes.find((b) => b.id === order.bikeId);
+      const client = bike ? state.clients.find((c) => c.id === bike.clientId) : null;
+      const autoBikeDesc = bike
+        ? `${bike.brand} ${bike.model}${bike.serial && bike.serial !== '-' ? ` (S/N: ${bike.serial})` : ''}${client ? ` — ${client.name}` : ''}`
+        : '';
+
+      return {
+        ID_Zlecenia: order.id || '',
+        Data_przyjęcia: order.dateIn || '',
+        ID_Roweru: order.bikeId || '',
+        Opis_stały_roweru_Auto: autoBikeDesc,
+        Przebieg: order.mileage || '',
+        Akcesoria: order.accessories || '',
+        Problem: order.problem || '',
+        Diagnoza: order.diagnosis || '',
+        Podsumowanie_opis: order.summary || '',
+        Suma_kosztów_PLN: calculateOrderTotal(order),
+        Status: order.status || 'Przyjęty',
+        Data_wydania: order.dateOut || '',
+        Uwagi_końcowe: order.finalNotes || ''
+      };
+    }
+
+    function mapCostItemToSheetRecord(item, orderId) {
+      const price = parseFloat(item.price) || 0;
+      const qty = parseFloat(item.qty) || 0;
+      return {
+        ID_Pozycji: item.id || '',
+        ID_Zlecenia: orderId || '',
+        Usługa_lub_Część: item.name || '',
+        Cena_jednostkowa_PLN: price,
+        Ilość: qty,
+        Wartość_PLN: Number((price * qty).toFixed(2))
+      };
+    }
+
+    // Wysyłka rekordu metodą POST do Google Apps Script
+    async function sendPostToAppsScript(table, action, record) {
+      saveLocalBackup();
+      const url = (state.appsScriptUrl || '').trim();
+      if (!url) {
+        setSyncStatus('offline', 'Tryb lokalny / offline — brak adresu URL Apps Script');
+        addSyncLog('ERR', table, action, record.ID_Klienta || record.ID_Roweru || record.ID_Zlecenia || record.ID_Pozycji || '-', 'Brak URL');
+        return false;
+      }
+
+      const recordId = record.ID_Klienta || record.ID_Roweru || record.ID_Zlecenia || record.ID_Pozycji || '-';
+      const payload = { table, action, record };
+
+      setSyncStatus('syncing', 'Synchronizacja...', `Wysyłanie ${table} (${recordId})`);
+
+      try {
+        await fetch(url, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(payload)
+        });
+
+        state.sentCount += 1;
+        setSyncStatus('sent', 'Wysłano do Google Sheets', `${table} • ${action} • ${recordId}`);
+        addSyncLog('POST', table, action, recordId, 'Wysłano (no-cors)');
+        return true;
+      } catch (err) {
+        console.warn('Błąd wysyłki POST do Apps Script:', err);
+        setSyncStatus('offline', 'Tryb lokalny / offline — błąd wysyłki do Sheets', `${table} (${recordId})`);
+        addSyncLog('ERR', table, action, recordId, err.message || 'Błąd sieci');
+        return false;
+      }
+    }
+
+    // Normalizacja danych zwróconych z GET w Apps Script
+    function parseSheetsPayload(jsonData) {
+      const root = jsonData && typeof jsonData === 'object'
+        ? (jsonData.data && typeof jsonData.data === 'object' ? jsonData.data : jsonData)
+        : null;
+
+      if (!root) return null;
+
+      const rawClients = Array.isArray(root.Klienci) ? root.Klienci : null;
+      const rawBikes = Array.isArray(root.Rowery) ? root.Rowery : null;
+      const rawOrders = Array.isArray(root.Zlecenia_Serwisowe) ? root.Zlecenia_Serwisowe : null;
+      const rawItems = Array.isArray(root.Pozycje_Zlecenia) ? root.Pozycje_Zlecenia : [];
+
+      if (!rawClients && !rawBikes && !rawOrders) return null;
+
+      const parsedClients = (rawClients || [])
+        .filter((r) => r && (r.ID_Klienta || r.Imię_Nazwa))
+        .map((r, idx) => ({
+          id: String(r.ID_Klienta || `K-${String(idx + 1).padStart(3, '0')}`).trim(),
+          name: String(r.Imię_Nazwa || '').trim(),
+          phone: String(r.Telefon || '').trim(),
+          company: String(r.Opis_klienta_Firma || '').trim()
+        }));
+
+      const parsedBikes = (rawBikes || [])
+        .filter((r) => r && (r.ID_Roweru || r.Model || r.Marka))
+        .map((r, idx) => ({
+          id: String(r.ID_Roweru || `R-${String(idx + 1).padStart(3, '0')}`).trim(),
+          clientId: String(r.ID_Klienta || '').trim(),
+          brand: String(r.Marka || '').trim(),
+          model: String(r.Model || '').trim(),
+          serial: String(r.Numer_Seryjny ?? '').trim(),
+          notes: String(r.Opis_stały_roweru ?? '').trim()
+        }));
+
+      const itemsByOrder = new Map();
+      rawItems.forEach((it, idx) => {
+        if (!it) return;
+        const orderId = String(it.ID_Zlecenia || '').trim();
+        if (!orderId) return;
+        const itemObj = {
+          id: String(it.ID_Pozycji || `POZ-${String(idx + 1).padStart(3, '0')}`).trim(),
+          name: String(it.Usługa_lub_Część || '').trim(),
+          price: parseFloat(it.Cena_jednostkowa_PLN) || 0,
+          qty: parseFloat(it.Ilość) || 1
+        };
+        if (!itemsByOrder.has(orderId)) itemsByOrder.set(orderId, []);
+        itemsByOrder.get(orderId).push(itemObj);
+      });
+
+      const parsedOrders = (rawOrders || [])
+        .filter((r) => r && (r.ID_Zlecenia || r.Problem || r.ID_Roweru))
+        .map((r, idx) => {
+          const orderId = String(r.ID_Zlecenia || `ZLC-${String(idx + 1).padStart(3, '0')}`).trim();
+          return {
+            id: orderId,
+            dateIn: String(r.Data_przyjęcia || '').trim(),
+            dateOut: String(r.Data_wydania || '').trim(),
+            bikeId: String(r.ID_Roweru || '').trim(),
+            mileage: String(r.Przebieg ?? '').trim(),
+            accessories: String(r.Akcesoria ?? '').trim(),
+            problem: String(r.Problem ?? '').trim(),
+            diagnosis: String(r.Diagnoza ?? '').trim(),
+            summary: String(r.Podsumowanie_opis ?? '').trim(),
+            finalNotes: String(r.Uwagi_końcowe ?? '').trim(),
+            status: String(r.Status || 'Przyjęty').trim() || 'Przyjęty',
+            items: itemsByOrder.get(orderId) || []
+          };
+        });
+
+      if (parsedClients.length === 0 && parsedBikes.length === 0 && parsedOrders.length === 0) {
+        return null;
+      }
+
+      return {
+        clients: parsedClients,
+        bikes: parsedBikes,
+        orders: parsedOrders
+      };
+    }
+
+    // Pobieranie danych z Google Sheets (GET)
+    window.pullFromGoogleSheets = async function (showNotification = true) {
+      const url = (state.appsScriptUrl || '').trim();
+      if (!url) {
+        setSyncStatus('offline', 'Tryb lokalny / offline — brak adresu URL Apps Script');
+        return false;
+      }
+
+      setSyncStatus('syncing', 'Synchronizacja...', 'Pobieranie danych z Google Sheets (GET)');
+
+      try {
+        const response = await fetch(url, { method: 'GET' });
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        const json = await response.json();
+        const parsed = parseSheetsPayload(json);
+
+        if (!parsed) {
+          setSyncStatus('offline', 'Tryb lokalny / offline — arkusz pusty lub brak tabeli, użyto danych startowych', 'GET pusty');
+          addSyncLog('GET', 'ALL', 'seed-fallback', '-', 'Puste dane w Sheets');
+          if (showNotification) showToast('Arkusz zwrócił puste dane — pozostawiono dane lokalne/startowe.', 'warning');
+          return false;
+        }
+
+        if (parsed.clients.length > 0) state.clients = parsed.clients;
+        if (parsed.bikes.length > 0) state.bikes = parsed.bikes;
+        if (parsed.orders.length > 0) state.orders = parsed.orders;
+
+        saveLocalBackup();
+
+        // Upewnij się, że zaznaczony klient i zlecenie nadal istnieją
+        if (!state.clients.some((c) => c.id === state.selectedClientId) && state.clients.length > 0) {
+          state.selectedClientId = state.clients[0].id;
+        }
+        if (state.selectedOrderId && state.orders.some((o) => o.id === state.selectedOrderId) && !state.hasUnsavedChanges) {
+          openOrderInRightPanel(state.selectedOrderId, false);
+        }
+
+        setSyncStatus(
+          'synced',
+          `Zsynchronizowano z Google Sheets (${state.clients.length} kl., ${state.bikes.length} row., ${state.orders.length} zlec.)`,
+          'Pobrano GET'
+        );
+        addSyncLog('GET', 'ALL', 'fetch', `${state.clients.length}/${state.bikes.length}/${state.orders.length}`, 'OK');
+        renderAll();
+        if (showNotification) showToast('Pobrano aktualne dane z Google Sheets.');
+        return true;
+      } catch (err) {
+        console.warn('Nie udało się pobrać danych z Google Sheets:', err);
+        setSyncStatus('offline', 'Tryb lokalny / offline — użyto danych lokalnych / startowych', 'GET niedostępny');
+        addSyncLog('ERR', 'ALL', 'fetch', '-', err.message || 'Błąd połączenia GET');
+        if (showNotification) {
+          showToast('Nie udało się pobrać z Google Sheets — działasz na danych lokalnych/startowych.', 'warning');
+        }
+        return false;
+      }
+    };
+
+    // Ręczna pełna synchronizacja wszystkich rekordów do Google Sheets
+    window.pushAllToGoogleSheets = async function () {
+      const url = (state.appsScriptUrl || '').trim();
+      if (!url) {
+        showToast('Najpierw wpisz adres URL wdrożenia Google Apps Script.', 'warning');
+        openSyncModal();
+        return;
+      }
+
+      setSyncStatus('syncing', 'Synchronizacja...', 'Wysyłanie kompletu danych do Google Sheets');
+      let count = 0;
+
+      for (const c of state.clients) {
+        await sendPostToAppsScript('Klienci', 'upsert', mapClientToSheetRecord(c));
+        count += 1;
+      }
+      for (const b of state.bikes) {
+        await sendPostToAppsScript('Rowery', 'upsert', mapBikeToSheetRecord(b));
+        count += 1;
+      }
+      for (const o of state.orders) {
+        await sendPostToAppsScript('Zlecenia_Serwisowe', 'upsert', mapOrderToSheetRecord(o));
+        count += 1;
+        for (const it of (o.items || [])) {
+          await sendPostToAppsScript('Pozycje_Zlecenia', 'upsert', mapCostItemToSheetRecord(it, o.id));
+          count += 1;
+        }
+      }
+
+      setSyncStatus('sent', `Wysłano do Google Sheets (${count} rekordów)`, `Pełna synchronizacja (${count})`);
+      showToast(`Wysłano ${count} rekordów do Google Sheets.`);
+    };
+
+    // Obsługa modala synchronizacji
+    window.openSyncModal = function () {
+      const modal = document.getElementById('syncModal');
+      const urlInput = document.getElementById('syncUrlInput');
+      if (urlInput) urlInput.value = state.appsScriptUrl || '';
+      renderSyncLogsModal();
+      setSyncStatus(state.syncStatus, state.syncMessage, state.lastActionText);
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    };
+
+    window.saveSyncUrlFromModal = function () {
+      const input = document.getElementById('syncUrlInput');
+      const newUrl = (input?.value || '').trim();
+      if (!newUrl) {
+        showToast('Podaj poprawny adres URL kończący się na /exec.', 'warning');
+        return;
+      }
+      state.appsScriptUrl = newUrl;
+      saveAppsScriptUrlToStorage(newUrl);
+      addSyncLog('GET', 'CONFIG', 'url-updated', '-', newUrl.slice(0, 42) + '...');
+      showToast('Zapisano adres URL Google Apps Script.');
+      pullFromGoogleSheets(false);
+    };
+
+    window.resetDefaultSyncUrl = function () {
+      state.appsScriptUrl = DEFAULT_APPS_SCRIPT_URL;
+      saveAppsScriptUrlToStorage(DEFAULT_APPS_SCRIPT_URL);
+      const input = document.getElementById('syncUrlInput');
+      if (input) input.value = DEFAULT_APPS_SCRIPT_URL;
+      showToast('Przywrócono domyślny adres URL Apps Script.');
+      pullFromGoogleSheets(false);
+    };
+
+    window.clearSyncLogs = function () {
+      state.syncLogs = [];
+      renderSyncLogsModal();
+    };
+
+    async function initDatabase() {
+      // 1. Natychmiast załaduj dane startowe / lokalne, aby interfejs był gotowy bez czekania
+      loadFallbackSeedData();
+      if (!state.clients.some((c) => c.id === state.selectedClientId) && state.clients.length > 0) {
+        state.selectedClientId = state.clients[0].id;
+      }
+      if (state.selectedOrderId) {
+        openOrderInRightPanel(state.selectedOrderId, false);
+      }
+      renderAll();
+
+      // 2. Spróbuj pobrać świeże dane z Google Sheets metodą GET
+      await pullFromGoogleSheets(false);
+
+      // 3. Opcjonalnie połącz Firestore jeśli środowisko go dostarcza
+      try {
+        if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+          const firebaseConfig = JSON.parse(__firebase_config);
+          const app = initializeApp(firebaseConfig);
+          db = getFirestore(app);
+          auth = getAuth(app);
+
+          if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+            await signInWithCustomToken(auth, __initial_auth_token);
+          } else {
+            await signInAnonymously(auth);
+          }
+
+          currentUser = auth.currentUser;
+          if (currentUser) {
+            isCloudConnected = true;
+            updateConnectionBadge(true);
+            await seedInitialDataIfEmpty();
+            subscribeToCollections();
+          }
+        } else {
+          updateConnectionBadge(false);
+        }
+      } catch (_err) {
+        updateConnectionBadge(false);
+      }
+    }
+
+    function updateConnectionBadge(connected) {
+      const dot = document.getElementById('dbStatusDot');
+      const text = document.getElementById('dbStatusText');
+      if (!dot || !text) return;
+      if (connected) {
+        dot.className = 'w-2 h-2 rounded-full bg-emerald-400';
+        text.textContent = 'Chmura aktywna';
+      } else {
+        dot.className = 'w-2 h-2 rounded-full bg-teal-400';
+        text.textContent = 'Google Sheets API';
+      }
+    }
+
+    // Ścieżki zgodne z RULE 1: /artifacts/{appId}/public/data/{collectionName}
+    function getPublicColRef(colName) {
+      return collection(db, 'artifacts', appId, 'public', 'data', colName);
+    }
+
+    function getPublicDocRef(colName, docId) {
+      return doc(db, 'artifacts', appId, 'public', 'data', colName, docId);
+    }
+
+    async function seedInitialDataIfEmpty() {
+      if (!currentUser || !db) return;
+      const clientsSnap = await getDocs(getPublicColRef('clients'));
+      if (clientsSnap.empty) {
+        // Zapisz klientów
+        for (const c of INITIAL_CLIENTS) {
+          await setDoc(getPublicDocRef('clients', c.id), c);
+        }
+        // Zapisz rowery
+        for (const b of INITIAL_BIKES) {
+          await setDoc(getPublicDocRef('bikes', b.id), b);
+        }
+        // Zapisz zlecenia (razem z tablicą pozycji kosztorysu)
+        for (const o of INITIAL_ORDERS) {
+          await setDoc(getPublicDocRef('orders', o.id), o);
+        }
+        // Zapisz słowniki
+        await setDoc(getPublicDocRef('settings', 'dictionaries'), state.dictionaries);
+      }
+    }
+
+    function subscribeToCollections() {
+      if (!currentUser || !db) return;
+
+      let loadedFlags = { clients: false, bikes: false, orders: false };
+
+      const checkInitialSelection = () => {
+        if (loadedFlags.clients && loadedFlags.bikes && loadedFlags.orders) {
+          if (!state.draftOrder && state.selectedOrderId) {
+            openOrderInRightPanel(state.selectedOrderId, false);
+          }
+          renderAll();
+        }
+      };
+
+      // 1. Klienci
+      onSnapshot(
+        getPublicColRef('clients'),
+        (snapshot) => {
+          const list = [];
+          snapshot.forEach((docSnap) => list.push(docSnap.data()));
+          list.sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
+          state.clients = list;
+          loadedFlags.clients = true;
+          checkInitialSelection();
+          renderAll();
+        },
+        (error) => console.error('Błąd pobierania klientów:', error)
+      );
+
+      // 2. Rowery
+      onSnapshot(
+        getPublicColRef('bikes'),
+        (snapshot) => {
+          const list = [];
+          snapshot.forEach((docSnap) => list.push(docSnap.data()));
+          list.sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
+          state.bikes = list;
+          loadedFlags.bikes = true;
+          checkInitialSelection();
+          renderAll();
+        },
+        (error) => console.error('Błąd pobierania rowerów:', error)
+      );
+
+      // 3. Zlecenia
+      onSnapshot(
+        getPublicColRef('orders'),
+        (snapshot) => {
+          const list = [];
+          snapshot.forEach((docSnap) => list.push(docSnap.data()));
+          list.sort((a, b) => b.id.localeCompare(a.id, undefined, { numeric: true }));
+          state.orders = list;
+          loadedFlags.orders = true;
+          checkInitialSelection();
+          renderAll();
+        },
+        (error) => console.error('Błąd pobierania zleceń:', error)
+      );
+
+      // 4. Słowniki
+      onSnapshot(
+        getPublicDocRef('settings', 'dictionaries'),
+        (docSnap) => {
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            if (Array.isArray(data.brands)) state.dictionaries.brands = data.brands;
+            if (Array.isArray(data.statuses)) state.dictionaries.statuses = data.statuses;
+            if (Array.isArray(data.priceList)) state.dictionaries.priceList = data.priceList;
+            renderAll();
+          }
+        },
+        (error) => console.error('Błąd pobierania słowników:', error)
+      );
+    }
+
+    // =========================================================================
+    // 4. FUNKCJE POMOCNICZE (ID, FORMATOWANIE, KOLORY STATUSÓW)
+    // =========================================================================
+    function generateNextId(prefix, items) {
+      let maxNum = 0;
+      const regex = new RegExp(`^${prefix}-(\\d+)$`);
+      items.forEach((item) => {
+        const match = (item.id || '').match(regex);
+        if (match) {
+          const num = parseInt(match[1], 10);
+          if (num > maxNum) maxNum = num;
+        }
+      });
+      return `${prefix}-${String(maxNum + 1).padStart(3, '0')}`;
+    }
+
+    function calculateOrderTotal(order) {
+      if (!order || !Array.isArray(order.items)) return 0;
+      return order.items.reduce((sum, item) => {
+        const price = parseFloat(item.price) || 0;
+        const qty = parseFloat(item.qty) || 0;
+        return sum + price * qty;
+      }, 0);
+    }
+
+    function formatPLN(amount) {
+      return new Intl.NumberFormat('pl-PL', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      }).format(amount || 0) + ' zł';
+    }
+
+    function getStatusBadgeClasses(status) {
+      switch (status) {
+        case 'Przyjęty':
+          return 'bg-sky-100 text-sky-800 border-sky-200';
+        case 'Diagnoza':
+          return 'bg-indigo-100 text-indigo-800 border-indigo-200';
+        case 'Oczekuje na części':
+          return 'bg-amber-100 text-amber-800 border-amber-200';
+        case 'W trakcie reklamacji':
+          return 'bg-rose-100 text-rose-800 border-rose-200';
+        case 'Do potwierdzenia':
+          return 'bg-purple-100 text-purple-800 border-purple-200';
+        case 'Gotowy':
+          return 'bg-emerald-100 text-emerald-800 border-emerald-200';
+        case 'Wydany':
+          return 'bg-slate-200 text-slate-700 border-slate-300';
+        default:
+          return 'bg-teal-100 text-teal-800 border-teal-200';
+      }
+    }
+
+    function escapeHTML(str) {
+      if (str === null || str === undefined) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function showToast(message, type = 'success') {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      const bgClass = type === 'success'
+        ? 'bg-slate-900 text-white border-teal-500'
+        : type === 'warning'
+        ? 'bg-amber-900 text-amber-50 border-amber-400'
+        : 'bg-rose-900 text-white border-rose-500';
+
+      toast.className = `pointer-events-auto flex items-center gap-2.5 px-4 py-3 rounded-xl shadow-lg border-l-4 text-sm font-medium transition-all duration-300 ${bgClass}`;
+      toast.innerHTML = `
+        <span class="text-teal-400 font-bold">${type === 'success' ? '✓' : '!'}</span>
+        <span>${escapeHTML(message)}</span>
+      `;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-y-2');
+        setTimeout(() => toast.remove(), 300);
+      }, 3200);
+    }
+
+    // =========================================================================
+    // 5. RENDEROWANIE PANELU LEWEGO: LISTA KLIENTÓW
+    // =========================================================================
+    window.renderClientsList = function () {
+      const container = document.getElementById('clientsListContainer');
+      const searchInput = document.getElementById('clientSearchInput');
+      const clearBtn = document.getElementById('clearSearchBtn');
+      const query = (searchInput?.value || '').trim().toLowerCase();
+
+      if (clearBtn) {
+        clearBtn.classList.toggle('hidden', query.length === 0);
+      }
+
+      // Aktualizacja liczników
+      document.getElementById('mobClientsCount').textContent = state.clients.length;
+      document.getElementById('totalOrdersCountBadge').textContent = state.orders.length;
+
+      // Podświetlenie przycisku "Wszyscy klienci"
+      const btnAll = document.getElementById('btnAllView');
+      if (state.viewMode === 'all') {
+        btnAll.className = 'w-full py-2 px-3 rounded-xl text-xs font-semibold flex items-center justify-between border transition cursor-pointer bg-slate-900 text-white border-slate-900 shadow-xs';
+      } else {
+        btnAll.className = 'w-full py-2 px-3 rounded-xl text-xs font-semibold flex items-center justify-between border transition cursor-pointer bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200/70';
+      }
+
+      const filtered = state.clients.filter((c) => {
+        if (!query) return true;
+        return (
+          (c.name || '').toLowerCase().includes(query) ||
+          (c.phone || '').toLowerCase().includes(query) ||
+          (c.company || '').toLowerCase().includes(query) ||
+          (c.id || '').toLowerCase().includes(query)
+        );
+      });
+
+      if (filtered.length === 0) {
+        container.innerHTML = `
+          <div class="p-6 text-center text-slate-400 text-sm">
+            Brak klientów pasujących do wyszukiwania.
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = filtered.map((client) => {
+        const clientBikes = state.bikes.filter((b) => b.clientId === client.id);
+        const clientBikeIds = new Set(clientBikes.map((b) => b.id));
+        const clientOrders = state.orders.filter((o) => clientBikeIds.has(o.bikeId));
+        const activeOrdersCount = clientOrders.filter((o) => o.status !== 'Wydany').length;
+        const isSelected = state.viewMode === 'client' && state.selectedClientId === client.id;
+
+        return `
+          <button type="button" onclick="selectClient('${escapeHTML(client.id)}')"
+            class="w-full text-left p-3 rounded-xl transition cursor-pointer flex items-start justify-between gap-2 border ${
+              isSelected
+                ? 'bg-teal-50/90 border-teal-500 shadow-xs ring-1 ring-teal-500/20'
+                : 'bg-white border-transparent hover:bg-slate-50 hover:border-slate-200'
+            }">
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center gap-1.5">
+                <span class="text-[11px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">${escapeHTML(client.id)}</span>
+                <span class="font-bold text-sm text-slate-900 truncate">${escapeHTML(client.name)}</span>
+              </div>
+              <div class="text-xs text-slate-600 mt-1 flex items-center gap-1.5">
+                <span class="font-medium">${escapeHTML(client.phone || 'Brak tel.')}</span>
+              </div>
+              ${client.company ? `<div class="text-xs text-teal-700 font-medium truncate mt-0.5">${escapeHTML(client.company)}</div>` : ''}
+            </div>
+            <div class="flex flex-col items-end gap-1 shrink-0">
+              <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full ${
+                activeOrdersCount > 0 ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-500'
+              }" title="Liczba zleceń">
+                ${clientOrders.length} zlec.
+              </span>
+              <span class="text-[11px] text-slate-400">${clientBikes.length} row.</span>
+            </div>
+          </button>
+        `;
+      }).join('');
+    };
+
+    window.clearClientSearch = function () {
+      document.getElementById('clientSearchInput').value = '';
+      renderClientsList();
+    };
+
+    window.selectClient = function (clientId) {
+      state.viewMode = 'client';
+      state.selectedClientId = clientId;
+
+      // Jeśli aktualnie wybrane zlecenie nie należy do tego klienta, wybierz najnowsze zlecenie tego klienta (jeśli ma)
+      const clientBikeIds = new Set(state.bikes.filter((b) => b.clientId === clientId).map((b) => b.id));
+      const clientOrders = state.orders.filter((o) => clientBikeIds.has(o.bikeId));
+      const currentOrderBelongs = clientOrders.some((o) => o.id === state.selectedOrderId);
+
+      if (!currentOrderBelongs) {
+        if (clientOrders.length > 0) {
+          openOrderInRightPanel(clientOrders[0].id, false);
+        } else {
+          state.selectedOrderId = null;
+          state.draftOrder = null;
+          state.hasUnsavedChanges = false;
+        }
+      }
+
+      renderAll();
+      setMobileTab('clientCard');
+    };
+
+    window.selectAllView = function () {
+      state.viewMode = 'all';
+      renderAll();
+      setMobileTab('clientCard');
+    };
+
+    // =========================================================================
+    // 6. RENDEROWANIE PANELU ŚRODKOWEGO: KARTOTEKA KLIENTA / WSZYSTKIE ZLECENIA
+    // =========================================================================
+    function renderMiddlePanel() {
+      const container = document.getElementById('middlePanelContent');
+      if (!container) return;
+
+      // TRYB ZBIORCZY: WSZYSTKIE ZLECENIA W WARSZTACIE
+      if (state.viewMode === 'all') {
+        const totalRevenue = state.orders.reduce((acc, o) => acc + calculateOrderTotal(o), 0);
+
+        container.innerHTML = `
+          <div class="bg-white rounded-2xl shadow-sm border border-slate-200/90 p-4 sm:p-5">
+            <div class="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-100">
+              <div>
+                <span class="text-xs font-semibold uppercase tracking-wider text-teal-600">Widok ogólny warsztatu</span>
+                <h2 class="text-lg font-bold text-slate-900">Wszystkie zlecenia (${state.orders.length})</h2>
+              </div>
+              <div class="text-right">
+                <div class="text-xs text-slate-500">Łączna wartość kosztorysów</div>
+                <div class="text-base font-extrabold text-slate-900">${formatPLN(totalRevenue)}</div>
+              </div>
+            </div>
+
+            <div class="mt-4 space-y-2.5 max-h-[calc(100vh-14rem)] overflow-y-auto pr-1">
+              ${state.orders.length === 0 ? `
+                <p class="text-sm text-slate-400 text-center py-8">Brak zleceń w bazie.</p>
+              ` : state.orders.map((order) => renderOrderCardItem(order, true)).join('')}
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      // TRYB DRILL-DOWN: KARTOTEKA KONKRETNEGO KLIENTA
+      const client = state.clients.find((c) => c.id === state.selectedClientId);
+      if (!client) {
+        container.innerHTML = `
+          <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 text-center">
+            <p class="text-slate-500 text-sm">Wybierz klienta z listy po lewej stronie lub dodaj nowego.</p>
+          </div>
+        `;
+        return;
+      }
+
+      const clientBikes = state.bikes.filter((b) => b.clientId === client.id);
+      const clientBikeIds = new Set(clientBikes.map((b) => b.id));
+      const clientOrders = state.orders.filter((o) => clientBikeIds.has(o.bikeId));
+      const clientTotalSpent = clientOrders.reduce((acc, o) => acc + calculateOrderTotal(o), 0);
+
+      container.innerHTML = `
+        <!-- KARTA DANYCH KLIENTA -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200/90 p-4 sm:p-5">
+          <div class="flex items-start justify-between gap-3">
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-mono font-bold px-2 py-0.5 rounded-md bg-slate-900 text-white">${escapeHTML(client.id)}</span>
+                <h2 class="text-lg sm:text-xl font-bold text-slate-900">${escapeHTML(client.name)}</h2>
+              </div>
+              <div class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-600">
+                <a href="tel:${escapeHTML(client.phone)}" class="inline-flex items-center gap-1.5 font-semibold text-teal-700 hover:underline">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                  ${escapeHTML(client.phone || 'Brak telefonu')}
+                </a>
+                ${client.company ? `
+                  <span class="inline-flex items-center gap-1.5 text-slate-600">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+                    ${escapeHTML(client.company)}
+                  </span>
+                ` : ''}
+              </div>
+            </div>
+            <button type="button" onclick="openClientModal('${escapeHTML(client.id)}')" class="px-3 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold transition cursor-pointer shrink-0">
+              Edytuj klienta
+            </button>
+          </div>
+
+          <!-- Pasek mini-statystyk klienta -->
+          <div class="mt-4 pt-3 border-t border-slate-100 grid grid-cols-3 gap-2 text-center">
+            <div class="bg-slate-50 rounded-xl p-2">
+              <div class="text-[11px] text-slate-500">Rowery</div>
+              <div class="font-bold text-sm text-slate-900">${clientBikes.length}</div>
+            </div>
+            <div class="bg-slate-50 rounded-xl p-2">
+              <div class="text-[11px] text-slate-500">Naprawy</div>
+              <div class="font-bold text-sm text-slate-900">${clientOrders.length}</div>
+            </div>
+            <div class="bg-teal-50/70 rounded-xl p-2">
+              <div class="text-[11px] text-teal-700">Suma zleceń</div>
+              <div class="font-bold text-sm text-teal-900">${formatPLN(clientTotalSpent)}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- LISTA ROWERÓW KLIENTA -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200/90 p-4 sm:p-5">
+          <div class="flex items-center justify-between gap-2 mb-3">
+            <h3 class="font-bold text-sm text-slate-900 flex items-center gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-teal-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18.5" cy="17.5" r="3.5"/><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="15" cy="5" r="1"/><path d="M12 17.5V14l-3-3 4-3 2 3h2"/></svg>
+              Rowery klienta (${clientBikes.length})
+            </h3>
+            <button type="button" onclick="openBikeModal(null, '${escapeHTML(client.id)}')" class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold transition cursor-pointer">
+              + Dodaj rower
+            </button>
+          </div>
+
+          ${clientBikes.length === 0 ? `
+            <div class="p-4 rounded-xl bg-slate-50 border border-dashed border-slate-200 text-center text-xs text-slate-500">
+              Ten klient nie ma jeszcze przypisanego roweru. Kliknij <strong>+ Dodaj rower</strong>, aby utworzyć zlecenie.
+            </div>
+          ` : `
+            <div class="space-y-2">
+              ${clientBikes.map((bike) => `
+                <div class="p-3 rounded-xl bg-slate-50 border border-slate-200/80 flex items-start justify-between gap-2">
+                  <div class="min-w-0">
+                    <div class="flex items-center gap-1.5 flex-wrap">
+                      <span class="text-[11px] font-mono font-semibold text-slate-500">${escapeHTML(bike.id)}</span>
+                      <span class="font-bold text-sm text-slate-900">${escapeHTML(bike.brand)} ${escapeHTML(bike.model)}</span>
+                    </div>
+                    <div class="text-xs text-slate-600 mt-1 flex flex-wrap gap-x-3 gap-y-0.5">
+                      ${bike.serial && bike.serial !== '-' ? `<span>S/N: <strong class="font-mono text-slate-800">${escapeHTML(bike.serial)}</strong></span>` : ''}
+                      ${bike.notes && bike.notes !== '-' ? `<span class="text-teal-700">• ${escapeHTML(bike.notes)}</span>` : ''}
+                    </div>
+                  </div>
+                  <button type="button" onclick="openBikeModal('${escapeHTML(bike.id)}', '${escapeHTML(client.id)}')" class="text-xs text-slate-500 hover:text-slate-900 font-medium px-2 py-1 rounded-lg hover:bg-slate-200/60 transition cursor-pointer shrink-0">
+                    Edytuj
+                  </button>
+                </div>
+              `).join('')}
+            </div>
+          `}
+        </div>
+
+        <!-- LISTA ZLECEŃ SERWISOWYCH KLIENTA -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200/90 p-4 sm:p-5">
+          <div class="flex items-center justify-between gap-2 mb-3">
+            <h3 class="font-bold text-sm text-slate-900 flex items-center gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-teal-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+              Zlecenia serwisowe (${clientOrders.length})
+            </h3>
+            <button type="button" onclick="createNewOrderForClient('${escapeHTML(client.id)}')" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold shadow-sm transition cursor-pointer">
+              + Nowe zlecenie
+            </button>
+          </div>
+
+          ${clientOrders.length === 0 ? `
+            <div class="p-5 rounded-xl bg-slate-50 border border-dashed border-slate-200 text-center text-xs text-slate-500">
+              Brak historii napraw dla tego klienta. Kliknij <strong>+ Nowe zlecenie</strong>, aby przyjąć rower na serwis.
+            </div>
+          ` : `
+            <div class="space-y-2.5">
+              ${clientOrders.map((order) => renderOrderCardItem(order, false)).join('')}
+            </div>
+          `}
+        </div>
+      `;
+    }
+
+    function renderOrderCardItem(order, showClientName) {
+      const bike = state.bikes.find((b) => b.id === order.bikeId);
+      const client = bike ? state.clients.find((c) => c.id === bike.clientId) : null;
+      const total = calculateOrderTotal(order);
+      const isSelected = state.selectedOrderId === order.id;
+
+      return `
+        <button type="button" onclick="selectOrder('${escapeHTML(order.id)}')"
+          class="w-full text-left p-3.5 rounded-xl border transition cursor-pointer block ${
+            isSelected
+              ? 'bg-teal-50/70 border-teal-500 shadow-xs ring-1 ring-teal-500/20'
+              : 'bg-white border-slate-200 hover:border-teal-400 hover:bg-slate-50/80'
+          }">
+          <div class="flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-mono font-bold px-2 py-0.5 rounded bg-slate-900 text-white">${escapeHTML(order.id)}</span>
+              <span class="text-xs text-slate-500 font-medium">${escapeHTML(order.dateIn || 'Brak daty')}</span>
+            </div>
+            <span class="text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${getStatusBadgeClasses(order.status)}">
+              ${escapeHTML(order.status || 'Przyjęty')}
+            </span>
+          </div>
+
+          <div class="mt-2 font-bold text-sm text-slate-900">
+            ${bike ? `${escapeHTML(bike.brand)} ${escapeHTML(bike.model)}` : 'Nieznany rower'}
+            ${showClientName && client ? `<span class="font-normal text-slate-500"> • ${escapeHTML(client.name)}</span>` : ''}
+          </div>
+
+          <p class="mt-1 text-xs text-slate-600 line-clamp-2 whitespace-pre-line">${escapeHTML(order.problem || 'Brak opisu zgłoszenia')}</p>
+
+          <div class="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
+            <span class="text-slate-400">${(order.items || []).length} poz. w kosztorysie</span>
+            <span class="font-extrabold text-slate-900 text-sm">${formatPLN(total)}</span>
+          </div>
+        </button>
+      `;
+    }
+
+    // =========================================================================
+    // 7. RENDEROWANIE PANELU PRAWEGO: KARTA ZLECENIA / FORMULARZ NAPRAWY
+    // =========================================================================
+    window.selectOrder = function (orderId) {
+      openOrderInRightPanel(orderId, true);
+    };
+
+    function openOrderInRightPanel(orderId, switchMobile = true) {
+      const original = state.orders.find((o) => o.id === orderId);
+      if (!original) {
+        state.selectedOrderId = null;
+        state.draftOrder = null;
+        renderRightPanel();
+        return;
+      }
+
+      state.selectedOrderId = orderId;
+      // Głęboka kopia robocza do bezpiecznej edycji przed kliknięciem "Zapisz zmiany"
+      state.draftOrder = structuredClone(original);
+      if (!Array.isArray(state.draftOrder.items)) {
+        state.draftOrder.items = [];
+      }
+      state.hasUnsavedChanges = false;
+
+      renderMiddlePanel();
+      renderRightPanel();
+      if (switchMobile) {
+        setMobileTab('orderForm');
+      }
+    }
+
+    function renderRightPanel() {
+      const container = document.getElementById('rightPanelContent');
+      if (!container) return;
+
+      const order = state.draftOrder;
+      if (!order) {
+        container.innerHTML = `
+          <div class="bg-white rounded-2xl shadow-sm border border-slate-200/90 p-10 text-center">
+            <div class="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-3">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+            </div>
+            <h3 class="font-bold text-slate-800 text-base">Brak wybranego zlecenia</h3>
+            <p class="text-xs text-slate-500 mt-1 max-w-xs mx-auto">Kliknij dowolne zlecenie na liście po lewej lub kliknij <strong>+ Nowe zlecenie</strong> w kartotece klienta, aby otworzyć formularz naprawy.</p>
+          </div>
+        `;
+        return;
+      }
+
+      const currentBike = state.bikes.find((b) => b.id === order.bikeId);
+      const client = currentBike ? state.clients.find((c) => c.id === currentBike.clientId) : null;
+      // Rowery dostępne w liście rozwijanej (wszystkie rowery tego klienta, a jeśli brak klienta - wszystkie)
+      const availableBikes = client
+        ? state.bikes.filter((b) => b.clientId === client.id)
+        : state.bikes;
+
+      const totalAmount = calculateOrderTotal(order);
+
+      container.innerHTML = `
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200/90 overflow-hidden">
+          <!-- Nagłówek karty zlecenia -->
+          <div class="px-5 py-4 bg-slate-900 text-white flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="px-2.5 py-0.5 rounded-md bg-teal-500 text-slate-950 font-mono font-extrabold text-xs">${escapeHTML(order.id)}</span>
+                <h2 class="font-bold text-base">Karta Zlecenia Serwisowego</h2>
+              </div>
+              <p class="text-xs text-slate-300 mt-1">
+                Klient: <strong class="text-white">${client ? escapeHTML(client.name) : 'Nieznany'}</strong>
+                ${client && client.phone ? `(${escapeHTML(client.phone)})` : ''}
+              </p>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <span id="unsavedBadge" class="${state.hasUnsavedChanges ? 'inline-flex' : 'hidden'} items-center px-2.5 py-1 rounded-full bg-amber-500/20 border border-amber-400/50 text-amber-200 text-[11px] font-semibold">
+                Niezapisane zmiany
+              </span>
+              <button type="button" onclick="saveCurrentOrder()" class="px-4 py-2 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs sm:text-sm shadow-sm transition cursor-pointer">
+                Zapisz zmiany
+              </button>
+            </div>
+          </div>
+
+          <!-- Formularz edycji wszystkich pól zlecenia -->
+          <div class="p-4 sm:p-5 space-y-5 max-h-[calc(100vh-11rem)] overflow-y-auto">
+
+            <!-- Sekcja 1: Rower, Status i Daty -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <div class="sm:col-span-2">
+                <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Rower klienta</label>
+                <select onchange="updateDraftField('bikeId', this.value)" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500">
+                  ${availableBikes.map((b) => `
+                    <option value="${escapeHTML(b.id)}" ${b.id === order.bikeId ? 'selected' : ''}>
+                      ${escapeHTML(b.id)} | ${escapeHTML(b.brand)} ${escapeHTML(b.model)} ${b.serial && b.serial !== '-' ? `(S/N: ${escapeHTML(b.serial)})` : ''}
+                    </option>
+                  `).join('')}
+                </select>
+                ${currentBike && currentBike.notes && currentBike.notes !== '-' ? `
+                  <p class="text-xs text-teal-700 mt-1 font-medium">Info stałe o rowerze: ${escapeHTML(currentBike.notes)}</p>
+                ` : ''}
+              </div>
+
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Status naprawy</label>
+                <select onchange="updateDraftField('status', this.value)" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-sm font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500">
+                  ${state.dictionaries.statuses.map((st) => `
+                    <option value="${escapeHTML(st)}" ${st === order.status ? 'selected' : ''}>${escapeHTML(st)}</option>
+                  `).join('')}
+                </select>
+              </div>
+
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Przebieg (km)</label>
+                <input type="text" value="${escapeHTML(order.mileage || '')}" oninput="updateDraftField('mileage', this.value)" placeholder="np. 1450" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500" />
+              </div>
+
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Data przyjęcia</label>
+                <input type="date" value="${escapeHTML(order.dateIn || '')}" onchange="updateDraftField('dateIn', this.value)" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500" />
+              </div>
+
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Data wydania</label>
+                <input type="date" value="${escapeHTML(order.dateOut || '')}" onchange="updateDraftField('dateOut', this.value)" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500" />
+              </div>
+            </div>
+
+            <!-- Sekcja 2: Akcesoria i Zgłoszony problem -->
+            <div class="space-y-3.5 pt-2 border-t border-slate-100">
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Akcesoria przyjęte z rowerem (kluczyki, ładowarka, papiery)</label>
+                <textarea rows="2" oninput="updateDraftField('accessories', this.value)" placeholder="np. Brak kluczyków, ładowarka, speedbox..." class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500">${escapeHTML(order.accessories || '')}</textarea>
+              </div>
+
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Problem / Zgłoszenie klienta</label>
+                <textarea rows="3" oninput="updateDraftField('problem', this.value)" placeholder="Opisz objawy zgłoszone przez klienta..." class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500">${escapeHTML(order.problem || '')}</textarea>
+              </div>
+
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Diagnoza serwisowa</label>
+                <textarea rows="3" oninput="updateDraftField('diagnosis', this.value)" placeholder="Ustalenia mechanika po oględzinach..." class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500">${escapeHTML(order.diagnosis || '')}</textarea>
+              </div>
+            </div>
+
+            <!-- Sekcja 3: Kosztorys (Pozycje zlecenia) -->
+            <div class="pt-3 border-t border-slate-200">
+              <div class="flex flex-wrap items-center justify-between gap-2 mb-2.5">
+                <div>
+                  <h3 class="font-bold text-sm text-slate-900">Kosztorys (Części i robocizna)</h3>
+                  <p class="text-[11px] text-slate-500">Wybierz z cennika lub wpisz własną pozycję</p>
+                </div>
+                <button type="button" onclick="addCostItem()" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold transition cursor-pointer">
+                  + Dodaj pozycję
+                </button>
+              </div>
+
+              <!-- Lista podpowiedzi z cennika (datalist) -->
+              <datalist id="priceListDatalist">
+                ${state.dictionaries.priceList.map((p) => `
+                  <option value="${escapeHTML(p.name)}">${escapeHTML(p.name)} (${p.price} zł)</option>
+                `).join('')}
+              </datalist>
+
+              <div class="rounded-xl border border-slate-200 overflow-hidden">
+                <div class="overflow-x-auto">
+                  <table class="w-full text-left border-collapse">
+                    <thead>
+                      <tr class="bg-slate-50 border-b border-slate-200 text-[11px] font-bold uppercase text-slate-500">
+                        <th class="py-2 px-2.5">Usługa / Część</th>
+                        <th class="py-2 px-2 w-24 text-right">Cena (zł)</th>
+                        <th class="py-2 px-2 w-16 text-center">Ilość</th>
+                        <th class="py-2 px-2.5 w-24 text-right">Wartość</th>
+                        <th class="py-2 px-1.5 w-8"></th>
+                      </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 text-sm">
+                      ${order.items.length === 0 ? `
+                        <tr>
+                          <td colspan="5" class="py-5 px-3 text-center text-xs text-slate-400">
+                            Brak pozycji w kosztorysie. Kliknij <strong>+ Dodaj pozycję</strong>, aby wycenić naprawę.
+                          </td>
+                        </tr>
+                      ` : order.items.map((item, idx) => {
+                        const rowVal = (parseFloat(item.price) || 0) * (parseFloat(item.qty) || 0);
+                        return `
+                          <tr class="hover:bg-slate-50/70">
+                            <td class="p-1.5">
+                              <input type="text" list="priceListDatalist" value="${escapeHTML(item.name || '')}"
+                                oninput="updateCostItem(${idx}, 'name', this.value)"
+                                placeholder="Nazwa usługi/części..."
+                                class="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs sm:text-sm focus:outline-none focus:border-teal-500" />
+                            </td>
+                            <td class="p-1.5">
+                              <input type="number" step="0.01" min="0" value="${item.price ?? 0}"
+                                oninput="updateCostItem(${idx}, 'price', this.value)"
+                                class="w-full px-2 py-1.5 rounded-lg border border-slate-200 text-xs sm:text-sm text-right font-mono focus:outline-none focus:border-teal-500" />
+                            </td>
+                            <td class="p-1.5">
+                              <input type="number" step="1" min="1" value="${item.qty ?? 1}"
+                                oninput="updateCostItem(${idx}, 'qty', this.value)"
+                                class="w-full px-1.5 py-1.5 rounded-lg border border-slate-200 text-xs sm:text-sm text-center font-mono focus:outline-none focus:border-teal-500" />
+                            </td>
+                            <td class="p-1.5 text-right font-bold text-xs sm:text-sm text-slate-800 whitespace-nowrap" id="itemRowTotal-${idx}">
+                              ${formatPLN(rowVal)}
+                            </td>
+                            <td class="p-1 text-center">
+                              <button type="button" onclick="removeCostItem(${idx})" class="text-slate-400 hover:text-rose-600 p-1 rounded-lg transition cursor-pointer" title="Usuń pozycję">
+                                ✕
+                              </button>
+                            </td>
+                          </tr>
+                        `;
+                      }).join('')}
+                    </tbody>
+                  </table>
+                </div>
+
+                <!-- Podsumowanie kwoty razem -->
+                <div class="bg-slate-900 text-white px-4 py-3 flex items-center justify-between">
+                  <span class="text-xs font-semibold uppercase tracking-wider text-slate-300">Razem do zapłaty (PLN)</span>
+                  <span id="orderGrandTotal" class="text-lg font-extrabold text-teal-400">${formatPLN(totalAmount)}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Sekcja 4: Podsumowanie / Zalecenia i Uwagi końcowe -->
+            <div class="space-y-3.5 pt-2 border-t border-slate-100">
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Podsumowanie naprawy / Reklamacje</label>
+                <textarea rows="2" oninput="updateDraftField('summary', this.value)" placeholder="np. Nr zgłoszenia reklamacyjnego, główne wnioski..." class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500">${escapeHTML(order.summary || '')}</textarea>
+              </div>
+
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Uwagi końcowe / Zalecenia dla klienta przy odbiorze</label>
+                <textarea rows="2" oninput="updateDraftField('finalNotes', this.value)" placeholder="np. Kontrola naciągu łańcucha za 300 km..." class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500">${escapeHTML(order.finalNotes || '')}</textarea>
+              </div>
+            </div>
+
+            <!-- Dolny pasek zapisu i usuwania -->
+            <div class="pt-3 border-t border-slate-200 flex items-center justify-between gap-3">
+              <button type="button" onclick="deleteCurrentOrder()" class="px-3 py-2 rounded-xl text-xs font-semibold text-rose-600 hover:bg-rose-50 transition cursor-pointer">
+                Usuń zlecenie
+              </button>
+              <button type="button" onclick="saveCurrentOrder()" class="px-6 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-sm shadow-sm transition cursor-pointer">
+                Zapisz zmiany
+              </button>
+            </div>
+
+          </div>
+        </div>
+      `;
+    }
+
+    // Aktualizacja pojedynczego pola w roboczej kopii zlecenia
+    window.updateDraftField = function (field, value) {
+      if (!state.draftOrder) return;
+      state.draftOrder[field] = value;
+      markUnsaved();
+      if (field === 'bikeId') {
+        renderRightPanel();
+      }
+    };
+
+    window.addCostItem = function () {
+      if (!state.draftOrder) return;
+      state.draftOrder.items.push({
+        id: 'itm-' + Date.now() + '-' + Math.floor(Math.random() * 1000),
+        name: '',
+        price: 0,
+        qty: 1
+      });
+      markUnsaved();
+      renderRightPanel();
+    };
+
+    window.updateCostItem = function (index, field, value) {
+      if (!state.draftOrder || !state.draftOrder.items[index]) return;
+      const item = state.draftOrder.items[index];
+
+      if (field === 'name') {
+        item.name = value;
+        // Automatycznie podpowiedz cenę, jeśli nazwa dokładnie pasuje do pozycji w cenniku
+        const matched = state.dictionaries.priceList.find(
+          (p) => p.name.toLowerCase() === value.trim().toLowerCase()
+        );
+        if (matched && (!item.price || item.price === 0)) {
+          item.price = matched.price;
+          markUnsaved();
+          renderRightPanel();
+          return;
+        }
+      } else if (field === 'price') {
+        item.price = parseFloat(value) || 0;
+      } else if (field === 'qty') {
+        item.qty = Math.max(1, parseFloat(value) || 1);
+      }
+
+      markUnsaved();
+      recalculateOrderTotalsInDOM();
+    };
+
+    window.removeCostItem = function (index) {
+      if (!state.draftOrder || !Array.isArray(state.draftOrder.items)) return;
+      state.draftOrder.items.splice(index, 1);
+      markUnsaved();
+      renderRightPanel();
+    };
+
+    function recalculateOrderTotalsInDOM() {
+      if (!state.draftOrder) return;
+      (state.draftOrder.items || []).forEach((item, idx) => {
+        const rowEl = document.getElementById(`itemRowTotal-${idx}`);
+        if (rowEl) {
+          const rowVal = (parseFloat(item.price) || 0) * (parseFloat(item.qty) || 0);
+          rowEl.textContent = formatPLN(rowVal);
+        }
+      });
+      const grandTotalEl = document.getElementById('orderGrandTotal');
+      if (grandTotalEl) {
+        grandTotalEl.textContent = formatPLN(calculateOrderTotal(state.draftOrder));
+      }
+    }
+
+    function markUnsaved() {
+      state.hasUnsavedChanges = true;
+      const badge = document.getElementById('unsavedBadge');
+      if (badge) badge.classList.remove('hidden');
+    }
+
+    // Zapis zmian w karcie zlecenia do bazy oraz wysyłka do Google Sheets
+    window.saveCurrentOrder = async function () {
+      if (!state.draftOrder) return;
+      const orderToSave = structuredClone(state.draftOrder);
+      if (!Array.isArray(orderToSave.items)) orderToSave.items = [];
+
+      // Nadaj ID_Pozycji (POZ-xxx) nowym pozycjom kosztorysu, które jeszcze nie mają prefixu POZ-
+      const existingPozycjeIds = [];
+      state.orders.forEach((o) => {
+        if (o.id !== orderToSave.id) {
+          (o.items || []).forEach((it) => existingPozycjeIds.push(it));
+        }
+      });
+
+      orderToSave.items.forEach((it) => {
+        if (!it.id || !/^POZ-\d+$/.test(String(it.id))) {
+          it.id = generateNextId('POZ', [...existingPozycjeIds, ...orderToSave.items.filter((x) => x !== it)]);
+        }
+      });
+
+      const previousOrder = state.orders.find((o) => o.id === orderToSave.id);
+      const previousItems = previousOrder && Array.isArray(previousOrder.items) ? previousOrder.items : [];
+      const currentItemIds = new Set(orderToSave.items.map((it) => it.id));
+      const removedItems = previousItems.filter((prev) => prev.id && !currentItemIds.has(prev.id));
+
+      try {
+        if (isCloudConnected && currentUser && db) {
+          await setDoc(getPublicDocRef('orders', orderToSave.id), orderToSave);
+        } else {
+          const idx = state.orders.findIndex((o) => o.id === orderToSave.id);
+          if (idx >= 0) state.orders[idx] = orderToSave;
+          else state.orders.unshift(orderToSave);
+        }
+
+        state.draftOrder = structuredClone(orderToSave);
+        state.hasUnsavedChanges = false;
+        const badge = document.getElementById('unsavedBadge');
+        if (badge) badge.classList.add('hidden');
+
+        renderAll();
+        showToast(`Zapisano zmiany w zleceniu ${orderToSave.id}`);
+
+        // Wyślij zlecenie do Zlecenia_Serwisowe oraz pozycje do Pozycje_Zlecenia
+        await sendPostToAppsScript('Zlecenia_Serwisowe', 'upsert', mapOrderToSheetRecord(orderToSave));
+
+        for (const it of orderToSave.items) {
+          await sendPostToAppsScript('Pozycje_Zlecenia', 'upsert', mapCostItemToSheetRecord(it, orderToSave.id));
+        }
+        for (const rem of removedItems) {
+          await sendPostToAppsScript('Pozycje_Zlecenia', 'delete', mapCostItemToSheetRecord(rem, orderToSave.id));
+        }
+      } catch (err) {
+        console.error('Błąd zapisu zlecenia:', err);
+        showToast('Wystąpił błąd podczas zapisu zlecenia.', 'error');
+      }
+    };
+
+    // Tworzenie nowego zlecenia dla klienta
+    window.createNewOrderForClient = async function (clientId) {
+      const clientBikes = state.bikes.filter((b) => b.clientId === clientId);
+      if (clientBikes.length === 0) {
+        showToast('Najpierw dodaj rower dla tego klienta, aby otworzyć zlecenie.', 'warning');
+        openBikeModal(null, clientId);
+        return;
+      }
+
+      const newOrderId = generateNextId('ZLC', state.orders);
+      const todayISO = new Date().toISOString().split('T')[0];
+
+      const newOrder = {
+        id: newOrderId,
+        dateIn: todayISO,
+        dateOut: '',
+        bikeId: clientBikes[0].id,
+        mileage: '',
+        accessories: '',
+        problem: '',
+        diagnosis: '',
+        summary: '',
+        finalNotes: '',
+        status: 'Przyjęty',
+        items: []
+      };
+
+      try {
+        if (isCloudConnected && currentUser && db) {
+          await setDoc(getPublicDocRef('orders', newOrder.id), newOrder);
+        } else {
+          state.orders.unshift(newOrder);
+        }
+
+        openOrderInRightPanel(newOrder.id, true);
+        renderAll();
+        showToast(`Utworzono nowe zlecenie ${newOrder.id}`);
+        await sendPostToAppsScript('Zlecenia_Serwisowe', 'upsert', mapOrderToSheetRecord(newOrder));
+      } catch (err) {
+        console.error('Błąd tworzenia zlecenia:', err);
+        showToast('Nie udało się utworzyć zlecenia.', 'error');
+      }
+    };
+
+    // Usuwanie zlecenia (dwustopniowe potwierdzenie bez natywnego confirm())
+    let deleteConfirmTimer = null;
+    let pendingDeleteOrderId = null;
+
+    window.deleteCurrentOrder = async function () {
+      if (!state.draftOrder) return;
+      const targetId = state.draftOrder.id;
+
+      if (pendingDeleteOrderId !== targetId) {
+        pendingDeleteOrderId = targetId;
+        showToast(`Kliknij ponownie "Usuń zlecenie", aby trwale usunąć ${targetId}`, 'warning');
+        clearTimeout(deleteConfirmTimer);
+        deleteConfirmTimer = setTimeout(() => {
+          pendingDeleteOrderId = null;
+        }, 4000);
+        return;
+      }
+
+      pendingDeleteOrderId = null;
+      const orderSnapshot = structuredClone(state.draftOrder);
+
+      try {
+        if (isCloudConnected && currentUser && db) {
+          await deleteDoc(getPublicDocRef('orders', targetId));
+        } else {
+          state.orders = state.orders.filter((o) => o.id !== targetId);
+        }
+
+        state.selectedOrderId = null;
+        state.draftOrder = null;
+        state.hasUnsavedChanges = false;
+        renderAll();
+        showToast(`Usunięto zlecenie ${targetId}`);
+
+        await sendPostToAppsScript('Zlecenia_Serwisowe', 'delete', mapOrderToSheetRecord(orderSnapshot));
+        for (const it of (orderSnapshot.items || [])) {
+          await sendPostToAppsScript('Pozycje_Zlecenia', 'delete', mapCostItemToSheetRecord(it, targetId));
+        }
+      } catch (err) {
+        console.error('Błąd usuwania zlecenia:', err);
+        showToast('Nie udało się usunąć zlecenia.', 'error');
+      }
+    };
+
+    // =========================================================================
+    // 8. OBSŁUGA MODALI: KLIENT I ROWER
+    // =========================================================================
+    window.openClientModal = function (clientId) {
+      const modal = document.getElementById('clientModal');
+      const title = document.getElementById('clientModalTitle');
+      const idInput = document.getElementById('clientFormId');
+      const nameInput = document.getElementById('clientFormName');
+      const phoneInput = document.getElementById('clientFormPhone');
+      const companyInput = document.getElementById('clientFormCompany');
+
+      if (clientId) {
+        const client = state.clients.find((c) => c.id === clientId);
+        if (!client) return;
+        title.textContent = `Edytuj klienta (${client.id})`;
+        idInput.value = client.id;
+        nameInput.value = client.name || '';
+        phoneInput.value = client.phone || '';
+        companyInput.value = client.company || '';
+      } else {
+        title.textContent = 'Dodaj nowego klienta';
+        idInput.value = '';
+        nameInput.value = '';
+        phoneInput.value = '';
+        companyInput.value = '';
+      }
+
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+      setTimeout(() => nameInput.focus(), 50);
+    };
+
+    window.saveClientForm = async function (event) {
+      event.preventDefault();
+      const existingId = document.getElementById('clientFormId').value.trim();
+      const name = document.getElementById('clientFormName').value.trim();
+      const phone = document.getElementById('clientFormPhone').value.trim();
+      const company = document.getElementById('clientFormCompany').value.trim();
+
+      if (!name || !phone) return;
+
+      const clientId = existingId || generateNextId('K', state.clients);
+      const clientData = { id: clientId, name, phone, company };
+
+      try {
+        if (isCloudConnected && currentUser && db) {
+          await setDoc(getPublicDocRef('clients', clientId), clientData);
+        } else {
+          const idx = state.clients.findIndex((c) => c.id === clientId);
+          if (idx >= 0) state.clients[idx] = clientData;
+          else state.clients.push(clientData);
+        }
+
+        closeModal('clientModal');
+        selectClient(clientId);
+        showToast(existingId ? `Zaktualizowano dane klienta ${name}` : `Dodano klienta ${name} (${clientId})`);
+        await sendPostToAppsScript('Klienci', 'upsert', mapClientToSheetRecord(clientData));
+      } catch (err) {
+        console.error('Błąd zapisu klienta:', err);
+        showToast('Nie udało się zapisać klienta.', 'error');
+      }
+    };
+
+    window.openBikeModal = function (bikeId, clientId) {
+      const modal = document.getElementById('bikeModal');
+      const title = document.getElementById('bikeModalTitle');
+      const clientLabel = document.getElementById('bikeModalClientLabel');
+      const brandsDatalist = document.getElementById('brandsDatalist');
+
+      brandsDatalist.innerHTML = state.dictionaries.brands
+        .map((b) => `<option value="${escapeHTML(b)}">`)
+        .join('');
+
+      const client = state.clients.find((c) => c.id === clientId);
+      clientLabel.textContent = client ? `Właściciel: ${client.name} (${client.id})` : '';
+
+      document.getElementById('bikeFormClientId').value = clientId;
+
+      if (bikeId) {
+        const bike = state.bikes.find((b) => b.id === bikeId);
+        if (!bike) return;
+        title.textContent = `Edytuj rower (${bike.id})`;
+        document.getElementById('bikeFormId').value = bike.id;
+        document.getElementById('bikeFormBrand').value = bike.brand || '';
+        document.getElementById('bikeFormModel').value = bike.model || '';
+        document.getElementById('bikeFormSerial').value = bike.serial || '';
+        document.getElementById('bikeFormNotes').value = bike.notes || '';
+      } else {
+        title.textContent = 'Dodaj rower klienta';
+        document.getElementById('bikeFormId').value = '';
+        document.getElementById('bikeFormBrand').value = '';
+        document.getElementById('bikeFormModel').value = '';
+        document.getElementById('bikeFormSerial').value = '';
+        document.getElementById('bikeFormNotes').value = '';
+      }
+
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+      setTimeout(() => document.getElementById('bikeFormBrand').focus(), 50);
+    };
+
+    window.saveBikeForm = async function (event) {
+      event.preventDefault();
+      const existingId = document.getElementById('bikeFormId').value.trim();
+      const clientId = document.getElementById('bikeFormClientId').value.trim();
+      const brand = document.getElementById('bikeFormBrand').value.trim();
+      const model = document.getElementById('bikeFormModel').value.trim();
+      const serial = document.getElementById('bikeFormSerial').value.trim();
+      const notes = document.getElementById('bikeFormNotes').value.trim();
+
+      if (!brand || !model || !clientId) return;
+
+      const bikeId = existingId || generateNextId('R', state.bikes);
+      const bikeData = { id: bikeId, clientId, brand, model, serial, notes };
+
+      try {
+        if (isCloudConnected && currentUser && db) {
+          await setDoc(getPublicDocRef('bikes', bikeId), bikeData);
+        } else {
+          const idx = state.bikes.findIndex((b) => b.id === bikeId);
+          if (idx >= 0) state.bikes[idx] = bikeData;
+          else state.bikes.push(bikeData);
+        }
+
+        closeModal('bikeModal');
+        renderAll();
+        showToast(existingId ? `Zaktualizowano rower ${brand} ${model}` : `Dodano rower ${brand} ${model} (${bikeId})`);
+        await sendPostToAppsScript('Rowery', 'upsert', mapBikeToSheetRecord(bikeData));
+      } catch (err) {
+        console.error('Błąd zapisu roweru:', err);
+        showToast('Nie udało się zapisać roweru.', 'error');
+      }
+    };
+
+    window.closeModal = function (modalId) {
+      const modal = document.getElementById(modalId);
+      if (!modal) return;
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    };
+
+    // =========================================================================
+    // 9. MODAL SŁOWNIKÓW I CENNIKA
+    // =========================================================================
+    window.openDictionariesModal = function () {
+      const modal = document.getElementById('dictionariesModal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+      switchDictTab(state.activeDictTab || 'price');
+    };
+
+    window.switchDictTab = function (tab) {
+      state.activeDictTab = tab;
+      const tabs = {
+        price: document.getElementById('dictTabPrice'),
+        brands: document.getElementById('dictTabBrands'),
+        statuses: document.getElementById('dictTabStatuses')
+      };
+
+      Object.entries(tabs).forEach(([key, el]) => {
+        if (!el) return;
+        if (key === tab) {
+          el.className = 'px-4 py-2 text-xs sm:text-sm font-semibold rounded-t-xl border-t border-x border-slate-200 bg-white text-teal-700 -mb-px cursor-pointer';
+        } else {
+          el.className = 'px-4 py-2 text-xs sm:text-sm font-semibold rounded-t-xl text-slate-600 hover:text-slate-900 cursor-pointer';
+        }
+      });
+
+      renderDictionariesBody();
+    };
+
+    function renderDictionariesBody() {
+      const body = document.getElementById('dictionariesModalBody');
+      if (!body) return;
+
+      if (state.activeDictTab === 'price') {
+        body.innerHTML = `
+          <form onsubmit="addPriceListItem(event)" class="flex flex-col sm:flex-row gap-2 mb-4 pb-4 border-b border-slate-100">
+            <input type="text" id="newPriceName" required placeholder="Nazwa usługi lub części (np. Wymiana łańcucha)" class="flex-1 px-3.5 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:border-teal-500" />
+            <input type="number" id="newPriceValue" required step="0.01" min="0" placeholder="Cena PLN" class="w-full sm:w-32 px-3.5 py-2 rounded-xl border border-slate-300 text-sm font-mono focus:outline-none focus:border-teal-500" />
+            <button type="submit" class="px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-sm font-semibold transition cursor-pointer shrink-0">
+              + Dodaj do cennika
+            </button>
+          </form>
+
+          <div class="divide-y divide-slate-100">
+            ${state.dictionaries.priceList.map((item, idx) => `
+              <div class="py-2.5 flex items-center justify-between gap-3">
+                <div>
+                  <div class="font-semibold text-sm text-slate-900">${escapeHTML(item.name)}</div>
+                  <div class="text-xs font-mono text-teal-700 font-bold">${formatPLN(item.price)}</div>
+                </div>
+                <div class="flex items-center gap-2">
+                  ${state.draftOrder ? `
+                    <button type="button" onclick="insertPriceItemToOrder(${idx})" class="px-2.5 py-1 rounded-lg bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 text-xs font-semibold transition cursor-pointer">
+                      + Wstaw do ${escapeHTML(state.draftOrder.id)}
+                    </button>
+                  ` : ''}
+                  <button type="button" onclick="removeDictionaryEntry('priceList', ${idx})" class="text-slate-400 hover:text-rose-600 p-1.5 rounded-lg cursor-pointer" title="Usuń z cennika">✕</button>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      } else if (state.activeDictTab === 'brands') {
+        body.innerHTML = `
+          <form onsubmit="addSimpleDictItem(event, 'brands', 'newBrandInput')" class="flex gap-2 mb-4 pb-4 border-b border-slate-100">
+            <input type="text" id="newBrandInput" required placeholder="Nowa marka roweru (np. Canyon)" class="flex-1 px-3.5 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:border-teal-500" />
+            <button type="submit" class="px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-sm font-semibold transition cursor-pointer">+ Dodaj markę</button>
+          </form>
+          <div class="flex flex-wrap gap-2">
+            ${state.dictionaries.brands.map((brand, idx) => `
+              <span class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-100 text-slate-800 text-sm font-medium">
+                ${escapeHTML(brand)}
+                <button type="button" onclick="removeDictionaryEntry('brands', ${idx})" class="text-slate-400 hover:text-rose-600 text-xs font-bold cursor-pointer">✕</button>
+              </span>
+            `).join('')}
+          </div>
+        `;
+      } else if (state.activeDictTab === 'statuses') {
+        body.innerHTML = `
+          <form onsubmit="addSimpleDictItem(event, 'statuses', 'newStatusInput')" class="flex gap-2 mb-4 pb-4 border-b border-slate-100">
+            <input type="text" id="newStatusInput" required placeholder="Nowy status zlecenia (np. Wycena wysłana)" class="flex-1 px-3.5 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:border-teal-500" />
+            <button type="submit" class="px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-sm font-semibold transition cursor-pointer">+ Dodaj status</button>
+          </form>
+          <div class="space-y-2">
+            ${state.dictionaries.statuses.map((st, idx) => `
+              <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-200/70">
+                <span class="text-xs font-semibold px-2.5 py-1 rounded-full border ${getStatusBadgeClasses(st)}">${escapeHTML(st)}</span>
+                <button type="button" onclick="removeDictionaryEntry('statuses', ${idx})" class="text-slate-400 hover:text-rose-600 text-xs font-bold px-2 py-1 cursor-pointer">Usuń</button>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      }
+    }
+
+    async function persistDictionaries() {
+      if (isCloudConnected && currentUser && db) {
+        await setDoc(getPublicDocRef('settings', 'dictionaries'), state.dictionaries);
+      }
+      renderDictionariesBody();
+      renderRightPanel();
+    }
+
+    window.addPriceListItem = async function (event) {
+      event.preventDefault();
+      const name = document.getElementById('newPriceName').value.trim();
+      const price = parseFloat(document.getElementById('newPriceValue').value) || 0;
+      if (!name) return;
+
+      state.dictionaries.priceList.push({
+        id: 'PRC-' + Date.now(),
+        name,
+        price
+      });
+      await persistDictionaries();
+      showToast(`Dodano "${name}" do cennika`);
+    };
+
+    window.addSimpleDictItem = async function (event, key, inputId) {
+      event.preventDefault();
+      const input = document.getElementById(inputId);
+      const val = input.value.trim();
+      if (!val) return;
+      if (!state.dictionaries[key].includes(val)) {
+        state.dictionaries[key].push(val);
+        await persistDictionaries();
+        showToast(`Dodano "${val}" do słownika`);
+      }
+      input.value = '';
+    };
+
+    window.removeDictionaryEntry = async function (key, idx) {
+      state.dictionaries[key].splice(idx, 1);
+      await persistDictionaries();
+      showToast('Usunięto pozycję ze słownika');
+    };
+
+    window.insertPriceItemToOrder = function (priceIdx) {
+      if (!state.draftOrder) return;
+      const item = state.dictionaries.priceList[priceIdx];
+      if (!item) return;
+
+      state.draftOrder.items.push({
+        id: 'itm-' + Date.now(),
+        name: item.name,
+        price: item.price,
+        qty: 1
+      });
+      markUnsaved();
+      closeModal('dictionariesModal');
+      renderRightPanel();
+      setMobileTab('orderForm');
+      showToast(`Dodano "${item.name}" do kosztorysu ${state.draftOrder.id}`);
+    };
+
+    // =========================================================================
+    // 10. EKSPORT DO CSV (KOPIA ZAPASOWA ZGODNA Z GOOGLE SHEETS / EXCEL)
+    // =========================================================================
+    window.exportOrdersCSV = function () {
+      const headers = [
+        'ID_Zlecenia', 'Data_przyjęcia', 'Klient', 'Telefon', 'Firma',
+        'Rower', 'Numer_seryjny', 'Przebieg', 'Akcesoria', 'Problem',
+        'Diagnoza', 'Pozycje_kosztorysu', 'Razem_PLN', 'Status', 'Data_wydania', 'Uwagi'
+      ];
+
+      const escapeCSV = (val) => {
+        const s = String(val ?? '').replace(/\r?\n/g, ' | ');
+        return `"${s.replace(/"/g, '""')}"`;
+      };
+
+      const rows = state.orders.map((o) => {
+        const bike = state.bikes.find((b) => b.id === o.bikeId);
+        const client = bike ? state.clients.find((c) => c.id === bike.clientId) : null;
+        const itemsText = (o.items || [])
+          .map((it) => `${it.name} (${it.price} zł x ${it.qty})`)
+          .join('; ');
+        const total = calculateOrderTotal(o);
+
+        return [
+          o.id,
+          o.dateIn,
+          client ? client.name : '',
+          client ? client.phone : '',
+          client ? client.company : '',
+          bike ? `${bike.brand} ${bike.model}` : '',
+          bike ? bike.serial : '',
+          o.mileage,
+          o.accessories,
+          o.problem,
+          o.diagnosis,
+          itemsText,
+          total.toFixed(2).replace('.', ','),
+          o.status,
+          o.dateOut,
+          [o.summary, o.finalNotes].filter(Boolean).join(' / ')
+        ].map(escapeCSV).join(';');
+      });
+
+      // BOM UTF-8 dla poprawnego otwierania polskich znaków w Excelu i Google Sheets
+      const csvContent = '\uFEFF' + [headers.map(escapeCSV).join(';'), ...rows].join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const dateStamp = new Date().toISOString().split('T')[0];
+
+      link.href = url;
+      link.download = `Serwis_Rowerowy_Zlecenia_${dateStamp}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      showToast('Wyeksportowano plik CSV ze zleceniami');
+    };
+
+    // =========================================================================
+    // 11. NAWIGACJA MOBILNA I GŁÓWNE ODŚWIEŻANIE WIDOKU
+    // =========================================================================
+    window.setMobileTab = function (tab) {
+      state.mobileTab = tab;
+      const pClients = document.getElementById('panelClients');
+      const pCard = document.getElementById('panelClientCard');
+      const pOrder = document.getElementById('panelOrderForm');
+
+      const tClients = document.getElementById('mobTabClients');
+      const tCard = document.getElementById('mobTabClientCard');
+      const tOrder = document.getElementById('mobTabOrderForm');
+
+      // Na ekranach < lg pokazujemy tylko aktywny panel; na lg+ CSS grid pokazuje wszystkie 3
+      pClients.classList.toggle('hidden', tab !== 'clients');
+      pClients.classList.add('lg:flex');
+
+      pCard.classList.toggle('hidden', tab !== 'clientCard');
+      pCard.classList.add('lg:flex');
+
+      pOrder.classList.toggle('hidden', tab !== 'orderForm');
+      pOrder.classList.add('lg:block');
+
+      const activeBtn = 'py-2 px-2 rounded-lg text-xs font-semibold text-center bg-teal-600 text-white transition';
+      const inactiveBtn = 'py-2 px-2 rounded-lg text-xs font-semibold text-center bg-slate-700 text-slate-300 transition';
+
+      if (tClients) tClients.className = tab === 'clients' ? activeBtn : inactiveBtn;
+      if (tCard) tCard.className = tab === 'clientCard' ? activeBtn : inactiveBtn;
+      if (tOrder) tOrder.className = tab === 'orderForm' ? activeBtn : inactiveBtn;
+    };
+
+    function renderAll() {
+      renderClientsList();
+      renderMiddlePanel();
+      renderRightPanel();
+      setSyncStatus(state.syncStatus, state.syncMessage, state.lastActionText);
+    }
+
+    // Start aplikacji po załadowaniu DOM
+    window.addEventListener('DOMContentLoaded', () => {
+      setMobileTab('clients');
+      initDatabase();
+    });
+  </script>
+</body>
+</html>
